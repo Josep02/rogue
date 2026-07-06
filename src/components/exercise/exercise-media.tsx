@@ -39,7 +39,7 @@ export function ExerciseMedia({
     return (
       <div
         className={cn(
-          "flex aspect-[4/3] items-center justify-center rounded-3xl bg-muted",
+          "flex aspect-[16/10] items-center justify-center rounded-3xl bg-muted",
           className,
         )}
       >
@@ -51,7 +51,7 @@ export function ExerciseMedia({
   return (
     <div
       className={cn(
-        "relative aspect-[4/3] overflow-hidden rounded-3xl bg-white",
+        "relative aspect-[16/10] overflow-hidden rounded-3xl bg-muted",
         className,
       )}
     >
@@ -63,7 +63,7 @@ export function ExerciseMedia({
           fill
           sizes="(max-width: 480px) 100vw, 440px"
           className={cn(
-            "object-contain transition-opacity duration-300",
+            "object-cover transition-opacity duration-300",
             frame === index ? "opacity-100" : "opacity-0",
           )}
           onError={() => setFailed(true)}

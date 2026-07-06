@@ -285,7 +285,7 @@ function ExerciseRow({
         <div className="mt-2 border-t border-border mx-3 pt-2 pb-1">
           {/* Animación alternando los 2 frames */}
           {img0 && img1 && (
-            <div className="relative mx-auto mb-3 h-36 w-full overflow-hidden rounded-xl bg-muted">
+            <div className="relative mx-auto mb-3 aspect-[16/10] w-full overflow-hidden rounded-xl bg-muted">
               <Image
                 src={img0}
                 alt={`${nombre} inicio`}

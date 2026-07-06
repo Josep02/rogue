@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, ChevronRight } from "lucide-react";
-import { DEMO_EXERCISES } from "@/lib/exercises/repo";
+import Image from "next/image";
+import { Search, X, ChevronRight, Info } from "lucide-react";
+import { DEMO_EXERCISES, EXERCISE_IMG_BASE } from "@/lib/exercises/repo";
 import type { Exercise } from "@/lib/exercises/types";
 import type { MuscleGroup } from "@/lib/ranks";
 import { cn } from "@/lib/utils";
@@ -16,10 +17,99 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onSelect: (exercise: Exercise) => void;
-  /** IDs de ejercicios ya añadidos al día actual (se deshabilitan en la lista) */
   excludeIds?: string[];
 };
 
+// ── Fila expandible ─────────────────────────────────────────────────────────
+function ExerciseItem({
+  ex,
+  already,
+  onSelect,
+}: {
+  ex: Exercise;
+  already: boolean;
+  onSelect: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const img0 = `${EXERCISE_IMG_BASE}/${ex.fuenteId}/0.jpg`;
+  const img1 = `${EXERCISE_IMG_BASE}/${ex.fuenteId}/1.jpg`;
+
+  return (
+    <div className={cn("border-b border-border last:border-0", already && "opacity-40")}>
+      {/* Fila principal */}
+      <div className="flex items-center gap-2 py-3">
+        <button
+          disabled={already}
+          onClick={onSelect}
+          className="flex flex-1 flex-col text-left"
+        >
+          <p className="text-sm font-medium">{ex.nombre}</p>
+          <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+            {ex.grupo} · {ex.equipo}
+          </p>
+        </button>
+
+        {already ? (
+          <span className="font-mono text-[10px] text-muted-foreground">Añadido</span>
+        ) : (
+          <>
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className={cn(
+                "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors",
+                expanded
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Info className="size-3.5" />
+            </button>
+            <button onClick={onSelect} className="text-muted-foreground">
+              <ChevronRight className="size-4 shrink-0" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Panel expandido */}
+      {expanded && !already && (
+        <div className="pb-3">
+          {/* Animación 2 frames */}
+          <div className="relative mb-3 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-muted">
+            <Image
+              src={img0}
+              alt={`${ex.nombre} inicio`}
+              fill
+              className="object-cover [animation:ex-frame_1.2s_step-end_infinite]"
+              unoptimized
+            />
+            <Image
+              src={img1}
+              alt={`${ex.nombre} fin`}
+              fill
+              className="object-cover opacity-0 [animation:ex-frame-alt_1.2s_step-end_infinite]"
+              unoptimized
+            />
+          </div>
+
+          {/* Instrucciones */}
+          {ex.instrucciones.length > 0 && (
+            <ol className="flex flex-col gap-1.5">
+              {ex.instrucciones.map((step, i) => (
+                <li key={i} className="flex gap-2 text-[11px] text-muted-foreground">
+                  <span className="font-mono font-bold text-foreground shrink-0">{i + 1}.</span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Modal principal ──────────────────────────────────────────────────────────
 export function ExerciseSelectorModal({ open, onClose, onSelect, excludeIds = [] }: Props) {
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<MuscleGroup | "">("");
@@ -128,35 +218,15 @@ export function ExerciseSelectorModal({ open, onClose, onSelect, excludeIds = []
               No hay ejercicios con esos filtros
             </p>
           ) : (
-            <div className="flex flex-col divide-y divide-border">
-              {filtered.map((ex) => {
-                const already = excludeIds.includes(ex.id);
-                return (
-                  <button
-                    key={ex.id}
-                    onClick={() => { if (!already) { onSelect(ex); onClose(); } }}
-                    disabled={already}
-                    className={cn(
-                      "flex w-full items-center justify-between py-3 text-left transition-colors",
-                      already
-                        ? "cursor-not-allowed opacity-35"
-                        : "hover:text-foreground/80"
-                    )}
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{ex.nombre}</p>
-                      <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
-                        {ex.grupo} · {ex.equipo}
-                      </p>
-                    </div>
-                    {already ? (
-                      <span className="font-mono text-[10px] text-muted-foreground">Añadido</span>
-                    ) : (
-                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                    )}
-                  </button>
-                );
-              })}
+            <div className="flex flex-col">
+              {filtered.map((ex) => (
+                <ExerciseItem
+                  key={ex.id}
+                  ex={ex}
+                  already={excludeIds.includes(ex.id)}
+                  onSelect={() => { onSelect(ex); onClose(); }}
+                />
+              ))}
             </div>
           )}
         </div>
