@@ -1,15 +1,15 @@
-import { Shield } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
-  DIVISION_LABELS,
-  RANK_STYLES,
   getRankTier,
+  getDivisionLabel,
+  RANK_STYLES,
   type RankId,
 } from "@/lib/ranks";
 
 type RankBadgeProps = {
   tier: RankId;
-  division: 1 | 2 | 3;
+  division: number;
   size?: "sm" | "md";
   className?: string;
 };
@@ -21,27 +21,27 @@ export function RankBadge({
   className,
 }: RankBadgeProps) {
   const style = RANK_STYLES[tier];
-  const label = getRankTier(tier).label;
+  const rankTier = getRankTier(tier);
+  const label = rankTier.label;
   const isLarge = size === "md";
+  const divLabel = getDivisionLabel(rankTier, division);
+  const iconPath = `/ranks/${style.colorFamily}-${division}.svg`;
 
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-2xl ring-1",
-        style.bg,
-        style.ring,
-        isLarge ? "size-14" : "size-10",
+        "relative flex items-center justify-center",
+        isLarge ? "size-20" : "size-14",
         className
       )}
     >
-      <Shield
-        className={cn(style.text, isLarge ? "size-7" : "size-5")}
-        strokeWidth={1.75}
-        fill="currentColor"
-        fillOpacity={0.18}
+      <img
+        src={iconPath}
+        alt={`${label} icon`}
+        className="size-full object-contain"
       />
       <span className="sr-only">
-        {label} {DIVISION_LABELS[division - 1]}
+        {label} {divLabel}
       </span>
     </div>
   );

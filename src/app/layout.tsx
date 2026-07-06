@@ -3,6 +3,8 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { RogueProvider } from "@/lib/store/rogue-store";
+import { OnboardingGate } from "@/components/onboarding-gate";
 import "./globals.css";
 
 const inter = Inter({
@@ -56,7 +58,10 @@ export default function RootLayout({
     >
       <body className="antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <AppShell>{children}</AppShell>
+          <RogueProvider>
+            <AppShell>{children}</AppShell>
+            <OnboardingGate />
+          </RogueProvider>
         </ThemeProvider>
         <ServiceWorkerRegister />
       </body>

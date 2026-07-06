@@ -35,11 +35,11 @@ export const muscleRanks: MuscleRank[] = [
   { muscle: "Pecho", tier: "oro", division: 2, progress: 64 },
   { muscle: "Espalda", tier: "oro", division: 3, progress: 20 },
   { muscle: "Hombros", tier: "plata", division: 2, progress: 45 },
-  { muscle: "Biceps", tier: "diamante", division: 1, progress: 80 },
-  { muscle: "Triceps", tier: "platino", division: 3, progress: 10 },
-  { muscle: "Piernas", tier: "legendario", division: 2, progress: 55 },
+  { muscle: "Biceps", tier: "esmeralda", division: 4, progress: 80 },
+  { muscle: "Triceps", tier: "esmeralda", division: 2, progress: 10 },
+  { muscle: "Piernas", tier: "maestro", division: 2, progress: 55 },
   { muscle: "Gluteos", tier: "maestro", division: 1, progress: 33 },
-  { muscle: "Core", tier: "hierro", division: 3, progress: 90 },
+  { muscle: "Core", tier: "plata", division: 3, progress: 90 },
 ];
 
 export const exerciseSuggestions = [

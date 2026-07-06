@@ -25,13 +25,10 @@
   --card-mint-foreground: #276e51;
 
   --rank-bronce: #b08361;
-  --rank-hierro: #8b8d94;
-  --rank-plata: #a3a8b3;
+  --rank-plata: #3689c9;
   --rank-oro: #c7a34d;
-  --rank-platino: #6fa198;
-  --rank-diamante: #5f9fc9;
-  --rank-maestro: #9481b5;
-  --rank-legendario: #b5594f;
+  --rank-esmeralda: #4e9d5e;
+  --rank-maestro: #b5594f;
 }
 
 .dark {
@@ -57,13 +54,10 @@
   --card-mint-foreground: #a3dcc0;
 
   --rank-bronce: #c99b76;
-  --rank-hierro: #9fa1a8;
-  --rank-plata: #c1c5cd;
+  --rank-plata: #5ea3d4;
   --rank-oro: #dbb968;
-  --rank-platino: #82bcb0;
-  --rank-diamante: #83badd;
-  --rank-maestro: #ab98cc;
-  --rank-legendario: #c87669;
+  --rank-esmeralda: #74c07e;
+  --rank-maestro: #c87669;
 }
 
 @theme inline {
@@ -89,13 +83,10 @@
   --color-card-mint-foreground: var(--card-mint-foreground);
 
   --color-rank-bronce: var(--rank-bronce);
-  --color-rank-hierro: var(--rank-hierro);
   --color-rank-plata: var(--rank-plata);
   --color-rank-oro: var(--rank-oro);
-  --color-rank-platino: var(--rank-platino);
-  --color-rank-diamante: var(--rank-diamante);
+  --color-rank-esmeralda: var(--rank-esmeralda);
   --color-rank-maestro: var(--rank-maestro);
-  --color-rank-legendario: var(--rank-legendario);
 
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
@@ -113,6 +104,17 @@
 *::-webkit-scrollbar,
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Sin flechas de incremento en inputs numericos (usamos botones +/-). */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 body {

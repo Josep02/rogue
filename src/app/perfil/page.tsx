@@ -1,9 +1,13 @@
+"use client";
+
 import {
   ChevronRight,
   Dumbbell,
   Flame,
   LogOut,
-  Mail,
+  RotateCcw,
+  Shield,
+  Weight,
 } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -11,9 +15,7 @@ import {
   SwitchRow,
   UnitToggle,
 } from "@/components/profile/preference-controls";
-import { mockProfile, quickStats } from "@/lib/mock-data";
-
-export const metadata = { title: "Perfil · Rogue" };
+import { useRogue } from "@/lib/store/rogue-store";
 
 function Section({
   title,
@@ -32,12 +34,7 @@ function Section({
   );
 }
 
-/** Tarjeta con filas (label + valor + chevron). */
-function RowCard({
-  rows,
-}: {
-  rows: { label: string; value: string }[];
-}) {
+function RowCard({ rows }: { rows: { label: string; value: string }[] }) {
   return (
     <PastelCard variant="neutral" className="flex flex-col divide-y divide-border p-0">
       {rows.map((row) => (
@@ -60,66 +57,66 @@ function RowCard({
 }
 
 export default function PerfilPage() {
-  const initials = mockProfile.name
-    .split(" ")
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("");
+  const { profile, sessions, ranks, resetAll } = useRogue();
+
+  const initials =
+    profile.name
+      .split(" ")
+      .map((p) => p[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "R";
+  const rankedCount = ranks.filter((r) => r.ranked).length;
 
   return (
     <div className="flex flex-col gap-6 pt-2 pb-4">
-      {/* Cabecera del perfil */}
       <div className="flex items-center gap-4">
         <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-accent text-xl font-semibold text-accent-foreground">
           {initials}
         </span>
         <div className="min-w-0">
           <h1 className="truncate text-xl font-semibold tracking-tight">
-            {mockProfile.name}
+            {profile.name || "Atleta"}
           </h1>
-          <p className="font-mono text-xs text-muted-foreground">
-            {mockProfile.handle}
-          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Objetivo: {mockProfile.objetivo} · Miembro desde{" "}
-            {mockProfile.memberSince}
+            Objetivo: {profile.goal}
           </p>
         </div>
       </div>
 
-      {/* Resumen rapido */}
       <div className="grid grid-cols-3 gap-3">
         <PastelCard variant="neutral" className="flex flex-col gap-1.5">
           <Flame className="size-4 text-muted-foreground" />
           <p className="font-mono text-lg font-medium leading-none">
-            {quickStats.streakDays}
+            {sessions.length}
           </p>
-          <p className="text-[11px] text-muted-foreground">dias de racha</p>
+          <p className="text-[11px] text-muted-foreground">entrenos</p>
         </PastelCard>
         <PastelCard variant="neutral" className="flex flex-col gap-1.5">
-          <Dumbbell className="size-4 text-muted-foreground" />
+          <Shield className="size-4 text-muted-foreground" />
           <p className="font-mono text-lg font-medium leading-none">
-            {mockProfile.totalSessions}
+            {rankedCount}
           </p>
-          <p className="text-[11px] text-muted-foreground">sesiones</p>
+          <p className="text-[11px] text-muted-foreground">rangos</p>
         </PastelCard>
         <PastelCard variant="neutral" className="flex flex-col gap-1.5">
+          <Weight className="size-4 text-muted-foreground" />
           <p className="font-mono text-lg font-medium leading-none">
-            {mockProfile.bodyweightKg}
+            {profile.bodyweightKg}
             <span className="text-xs font-normal">kg</span>
           </p>
-          <p className="text-[11px] text-muted-foreground">peso corporal</p>
+          <p className="text-[11px] text-muted-foreground">peso</p>
         </PastelCard>
       </div>
 
-      {/* Datos fisicos: alimentan el calculo de rangos */}
       <Section title="DATOS FISICOS">
         <RowCard
           rows={[
-            { label: "Peso corporal", value: `${mockProfile.bodyweightKg} kg` },
-            { label: "Altura", value: `${mockProfile.heightCm} cm` },
-            { label: "Sexo", value: mockProfile.sex },
-            { label: "Objetivo", value: mockProfile.objetivo },
+            { label: "Peso corporal", value: `${profile.bodyweightKg} kg` },
+            { label: "Altura", value: `${profile.heightCm} cm` },
+            { label: "Sexo", value: profile.sex },
+            { label: "Objetivo", value: profile.goal },
           ]}
         />
         <p className="px-1 text-[11px] text-muted-foreground">
@@ -127,7 +124,6 @@ export default function PerfilPage() {
         </p>
       </Section>
 
-      {/* Configuracion */}
       <Section title="APARIENCIA">
         <ThemeToggle />
       </Section>
@@ -155,22 +151,23 @@ export default function PerfilPage() {
         </PastelCard>
       </Section>
 
-      <Section title="CUENTA">
-        <RowCard
-          rows={[
-            { label: "Correo", value: mockProfile.email },
-            { label: "Equipo disponible", value: mockProfile.equipo },
-          ]}
-        />
-      </Section>
-
-      <button
-        type="button"
-        className="flex items-center justify-center gap-2 rounded-2xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <LogOut className="size-4" />
-        Cerrar sesion
-      </button>
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={resetAll}
+          className="flex items-center justify-center gap-2 rounded-2xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <RotateCcw className="size-4" />
+          Reiniciar datos de demo
+        </button>
+        <button
+          type="button"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <LogOut className="size-4" />
+          Cerrar sesion
+        </button>
+      </div>
     </div>
   );
 }

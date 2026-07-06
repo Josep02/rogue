@@ -16,7 +16,7 @@ import {
   DIFFICULTY_LABELS,
   EQUIPMENT_LABELS,
 } from "@/lib/exercises/types";
-import { DIVISION_LABELS, getRankTier } from "@/lib/ranks";
+import { getDivisionLabel, getRankTier } from "@/lib/ranks";
 import { mockUser, muscleRanks } from "@/lib/mock-data";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -131,7 +131,7 @@ export default async function ExercisePage({ params }: PageProps) {
                   </p>
                   <p className="mt-0.5 text-sm font-semibold">
                     {getRankTier(groupRank.tier).label}{" "}
-                    {DIVISION_LABELS[groupRank.division - 1]}
+                    {getDivisionLabel(getRankTier(groupRank.tier), groupRank.division)}
                   </p>
                 </div>
               </PastelCard>

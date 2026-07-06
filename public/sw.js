@@ -1,7 +1,15 @@
 // Service worker minimo de Rogue: habilita la instalacion como app y da un
 // fallback offline basico (cache "network-first" para navegaciones).
-const CACHE = "rogue-v1";
-const OFFLINE_URLS = ["/", "/biblioteca", "/rutinas", "/rangos", "/perfil"];
+const CACHE = "rogue-v2";
+const OFFLINE_URLS = [
+  "/",
+  "/biblioteca",
+  "/rutinas",
+  "/rangos",
+  "/perfil",
+  "/entrenar",
+  "/onboarding",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

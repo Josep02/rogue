@@ -6,7 +6,7 @@ import { CalendarDays, Dumbbell, Home, Shield, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Hoy", icon: Home },
+  { href: "/", label: "Inicio", icon: Home },
   { href: "/rutinas", label: "Rutinas", icon: CalendarDays },
   { href: "/biblioteca", label: "Ejercicios", icon: Dumbbell },
   { href: "/rangos", label: "Rangos", icon: Shield },
@@ -36,17 +36,20 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              aria-label={item.label}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 rounded-[20px] px-3 py-1.5 transition-colors",
+                "flex items-center justify-center gap-1.5 rounded-full px-3 py-2 transition-colors",
                 active
                   ? "bg-accent/15 text-accent"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} />
-              <span className="text-[10px] font-medium leading-none">
-                {item.label}
-              </span>
+              {active && (
+                <span className="text-xs font-medium leading-none">
+                  {item.label}
+                </span>
+              )}
             </Link>
           );
         })}
