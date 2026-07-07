@@ -3,6 +3,8 @@
 import { usePathname } from "next/navigation";
 import { BottomNav } from "./bottom-nav";
 import { TopBar } from "./top-bar";
+import { CardioMiniPlayer } from "@/components/cardio/cardio-mini-player";
+import { RouteTrackerModal } from "@/components/cardio/route-tracker-modal";
 
 /** Rutas inmersivas: sin barras, a pantalla completa. */
 function isImmersive(pathname: string) {
@@ -21,8 +23,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ) : (
           <>
             <TopBar />
-            <main className="flex-1 overflow-y-auto px-5 pb-28">{children}</main>
-            <BottomNav />
+              <main className="flex-1 overflow-y-auto px-5 pb-28">{children}</main>
+              <CardioMiniPlayer />
+              <BottomNav />
+              <RouteTrackerModal />
           </>
         )}
       </div>

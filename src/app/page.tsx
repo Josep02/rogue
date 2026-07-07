@@ -139,7 +139,7 @@ export default function Home() {
           </p>
           <Link
             href="/rangos"
-            className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-1 rounded-full py-2 pl-2 pr-1 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
             Ver todo
             <ArrowRight className="size-3.5" />
@@ -175,7 +175,7 @@ export default function Home() {
               <p className="text-[11px] opacity-70">{exercise.secondaryMeta}</p>
               <Link
                 href={exercise.href}
-                className="mt-1 flex w-fit items-center gap-1 rounded-full bg-black/10 px-3 py-1 text-xs font-medium dark:bg-white/15"
+                className="mt-1 flex w-fit items-center gap-1 rounded-full bg-black/10 px-3 py-2 text-xs font-medium dark:bg-white/15"
               >
                 Ver
                 <ArrowRight className="size-3" />

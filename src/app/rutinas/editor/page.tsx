@@ -107,7 +107,7 @@ export default function ConstructorPage() {
       <div className="flex items-center justify-between">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+          className="flex items-center gap-1.5 rounded-full px-3 py-2.5 text-xs font-medium text-muted-foreground hover:bg-muted"
         >
           <ArrowLeft className="size-3.5" />
           Cancelar
@@ -115,7 +115,7 @@ export default function ConstructorPage() {
         <h1 className="text-base font-semibold">Constructor</h1>
         <button
           onClick={handleSave}
-          className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-semibold text-background"
+          className="flex items-center gap-1.5 rounded-full bg-foreground px-5 py-2.5 text-xs font-semibold text-background"
         >
           <Check className="size-3.5" />
           Guardar
@@ -205,7 +205,7 @@ export default function ConstructorPage() {
                     {days.length > 1 && (
                       <button
                         onClick={() => removeDay(day.id)}
-                        className="flex size-9 shrink-0 items-center justify-center rounded-2xl border border-border text-muted-foreground hover:text-destructive"
+                        className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="size-4" />
                       </button>
@@ -268,14 +268,17 @@ function ExerciseRow({
         <button
           onClick={() => setExpanded((v) => !v)}
           className={cn(
-            "flex size-6 items-center justify-center rounded-full transition-colors",
+            "flex size-10 items-center justify-center rounded-full transition-colors",
             expanded ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
           )}
           title="Más info"
         >
           <Info className="size-3.5" />
         </button>
-        <button onClick={onRemove} className="text-muted-foreground hover:text-destructive">
+        <button
+          onClick={onRemove}
+          className="flex size-10 items-center justify-center rounded-full text-muted-foreground hover:text-destructive"
+        >
           <X className="size-3.5" />
         </button>
       </div>
@@ -357,16 +360,16 @@ function Stepper({
       <div className="flex items-center gap-1">
         <button
           onClick={() => onChange(Math.max(min, value - 1))}
-          className="flex size-7 items-center justify-center rounded-full border border-border text-muted-foreground hover:text-foreground"
+          className="flex size-10 items-center justify-center rounded-full border border-border text-muted-foreground hover:text-foreground active:scale-95"
         >
-          <Minus className="size-3" />
+          <Minus className="size-3.5" />
         </button>
         <span className="w-8 text-center font-mono text-sm font-medium">{value}</span>
         <button
           onClick={() => onChange(Math.min(max, value + 1))}
-          className="flex size-7 items-center justify-center rounded-full border border-border text-muted-foreground hover:text-foreground"
+          className="flex size-10 items-center justify-center rounded-full border border-border text-muted-foreground hover:text-foreground active:scale-95"
         >
-          <Plus className="size-3" />
+          <Plus className="size-3.5" />
         </button>
       </div>
     </div>

@@ -74,7 +74,7 @@ function ExerciseItem({
             onClick={() => setExpanded((v) => !v)}
             aria-label="Ver ejecucion"
             className={cn(
-              "flex size-8 items-center justify-center rounded-full transition-colors",
+              "flex size-11 items-center justify-center rounded-full transition-colors",
               expanded
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -87,7 +87,7 @@ function ExerciseItem({
             )}
           </button>
           {already ? (
-            <span className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <Check className="size-4" />
             </span>
           ) : (
@@ -95,7 +95,7 @@ function ExerciseItem({
               type="button"
               onClick={onSelect}
               aria-label={`Anadir ${ex.nombre}`}
-              className="flex size-8 items-center justify-center rounded-full bg-accent text-accent-foreground transition-opacity hover:opacity-90"
+              className="flex size-11 items-center justify-center rounded-full bg-accent text-accent-foreground transition-opacity hover:opacity-90"
             >
               <Plus className="size-4" />
             </button>
@@ -190,7 +190,7 @@ export function ExerciseSelectorModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground"
+            className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"
           >
             <X className="size-4" />
           </button>

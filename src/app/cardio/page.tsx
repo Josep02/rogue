@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
-
 import { Flame, Footprints, Timer, TrendingUp, Play } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { RouteTrackerModal } from "@/components/cardio/route-tracker-modal";
+import { useCardio } from "@/lib/store/cardio-store";
 
 export default function CardioPage() {
-  const [isTracking, setIsTracking] = useState(false);
+  const { isTracking, startTracking, maximize } = useCardio();
 
   return (
     <div className="flex flex-col gap-6 pt-2 pb-24">
@@ -34,7 +33,7 @@ export default function CardioPage() {
           </h2>
           <p className="mt-1 font-mono text-sm text-neutral-500">pasos</p>
         </div>
-        
+
         <div className="mt-6 flex items-center justify-between border-t border-neutral-100 pt-4 dark:border-neutral-800">
           <div className="flex flex-col">
             <span className="font-mono text-[10px] font-medium tracking-wider text-neutral-500">
@@ -53,14 +52,12 @@ export default function CardioPage() {
         <PastelCard variant="blue" className="flex flex-col gap-2">
           <Flame className="size-4 text-blue-600/70" />
           <div className="mt-2">
-            <p className="text-2xl font-semibold leading-none">
-              450
-            </p>
+            <p className="text-2xl font-semibold leading-none">450</p>
             <p className="mt-1 text-xs text-muted-foreground">kcal quemadas</p>
           </div>
         </PastelCard>
-        
-        <PastelCard variant="green" className="flex flex-col gap-2">
+
+        <PastelCard variant="mint" className="flex flex-col gap-2">
           <Timer className="size-4 text-green-600/70" />
           <div className="mt-2">
             <p className="text-2xl font-semibold leading-none">
@@ -69,8 +66,8 @@ export default function CardioPage() {
             <p className="mt-1 text-xs text-muted-foreground">tiempo activo</p>
           </div>
         </PastelCard>
-        
-        <PastelCard variant="purple" className="flex flex-col gap-2">
+
+        <PastelCard variant="lilac" className="flex flex-col gap-2">
           <TrendingUp className="size-4 text-purple-600/70" />
           <div className="mt-2">
             <p className="text-2xl font-semibold leading-none">
@@ -84,23 +81,14 @@ export default function CardioPage() {
       {/* Action Button */}
       <div className="mt-4 flex justify-center">
         <button
-          onClick={() => setIsTracking(true)}
+          onClick={isTracking ? maximize : startTracking}
           className="flex w-full items-center justify-center gap-2 rounded-full bg-neutral-900 px-6 py-4 text-base font-semibold text-white shadow-lg transition-transform active:scale-95 dark:bg-white dark:text-neutral-900"
         >
           <Play className="size-5 fill-current" />
-          Empezar Ruta Libre
+          {isTracking ? "Ver Ruta Activa" : "Empezar Ruta Libre"}
         </button>
       </div>
 
-      {isTracking && (
-        <RouteTrackerModal
-          onClose={() => setIsTracking(false)}
-          onSave={(routeData) => {
-            console.log("Ruta guardada:", routeData);
-            // TODO: Guardar en el store global
-          }}
-        />
-      )}
     </div>
   );
 }

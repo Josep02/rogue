@@ -38,7 +38,7 @@ export function BottomNav() {
               href={item.href}
               aria-label={item.label}
               className={cn(
-                "flex items-center justify-center gap-1.5 rounded-full px-3 py-2 transition-colors",
+                "flex items-center justify-center gap-1.5 rounded-full px-3 py-3 transition-colors",
                 active
                   ? "bg-accent/15 text-accent"
                   : "text-muted-foreground hover:text-foreground"

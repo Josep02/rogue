@@ -257,7 +257,7 @@ export default function EntrenarPage() {
                       aria-label="Completar serie"
                       onClick={() => toggleDone(ex.exerciseId, i, ex.restSec)}
                       className={cn(
-                        "flex size-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
+                        "flex size-11 shrink-0 items-center justify-center rounded-xl border transition-colors active:scale-95",
                         s.done
                           ? "border-foreground bg-accent text-accent-foreground"
                           : "border-border text-muted-foreground",
@@ -282,7 +282,7 @@ export default function EntrenarPage() {
               <button
                 type="button"
                 onClick={() => setRestUntil(null)}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                className="rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
                 Saltar
               </button>

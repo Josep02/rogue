@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Play, Pause, Square, MapPin, Activity, Clock } from "lucide-react";
-import { useRouteTracker } from "@/hooks/use-route-tracker";
+import { Minimize2, Play, Pause, Square, MapPin, Activity, Clock } from "lucide-react";
+import { useCardio } from "@/lib/store/cardio-store";
 
-// Importación dinámica del mapa porque Leaflet requiere acceso a `window` (no compatible con SSR)
 const MapView = dynamic(() => import("./map-view"), {
   ssr: false,
   loading: () => (
@@ -15,74 +13,55 @@ const MapView = dynamic(() => import("./map-view"), {
   ),
 });
 
-interface RouteTrackerModalProps {
-  onClose: () => void;
-  onSave: (routeData: any) => void;
+function formatTime(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-export function RouteTrackerModal({ onClose, onSave }: RouteTrackerModalProps) {
+export function RouteTrackerModal() {
   const {
     isTracking,
     isPaused,
+    isMinimized,
     coordinates,
     distanceKm,
     durationSec,
-    startTracking,
     pauseTracking,
     resumeTracking,
     stopTracking,
-  } = useRouteTracker();
+    minimize,
+  } = useCardio();
 
-  // Iniciar al abrir
-  useEffect(() => {
-    startTracking();
-    return () => {
-      stopTracking();
-    };
-  }, [startTracking, stopTracking]);
+  if (!isTracking || isMinimized) return null;
 
-  const handleFinish = () => {
-    stopTracking();
-    onSave({
-      dateISO: new Date().toISOString(),
-      distanceKm,
-      durationSec,
-      coordinates,
-    });
-    onClose();
-  };
-
-  const formatTime = (totalSeconds: number) => {
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
-
-  // Calcular ritmo medio (min/km)
-  const pace = distanceKm > 0 ? (durationSec / 60) / distanceKm : 0;
-  const paceMinutes = Math.floor(pace);
-  const paceSeconds = Math.round((pace - paceMinutes) * 60);
-  const paceDisplay = pace > 0 ? `${paceMinutes}'${paceSeconds.toString().padStart(2, "0")}"` : "--";
+  const pace = distanceKm > 0 ? durationSec / 60 / distanceKm : 0;
+  const paceMin = Math.floor(pace);
+  const paceSec = Math.round((pace - paceMin) * 60);
+  const paceDisplay = pace > 0 ? `${paceMin}'${paceSec.toString().padStart(2, "0")}"` : "--";
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      {/* Contenedor del Mapa (fondo) */}
+      {/* Map */}
       <div className="flex-1 relative">
         <MapView coordinates={coordinates} />
-        
-        {/* Overlay superior */}
-        <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-background/80 to-transparent p-6 pt-[calc(env(safe-area-inset-top)+1rem)]">
-          <div className="flex items-center justify-between">
-            <span className="rounded-full bg-background/80 px-4 py-1.5 font-mono text-xs font-semibold tracking-widest backdrop-blur-md">
-              {isTracking && !isPaused ? "GRABANDO RUTA" : "PAUSADO"}
-            </span>
-          </div>
+
+        {/* Top overlay */}
+        <div className="absolute inset-x-0 top-0 z-[400] flex items-start justify-between p-5 pt-[calc(env(safe-area-inset-top)+1rem)] bg-gradient-to-b from-background/80 to-transparent">
+          <span className="rounded-full bg-background/80 px-4 py-1.5 font-mono text-xs font-semibold tracking-widest backdrop-blur-md">
+            {isPaused ? "PAUSADO" : "GRABANDO RUTA"}
+          </span>
+          <button
+            onClick={minimize}
+            className="flex size-12 items-center justify-center rounded-full bg-background/80 backdrop-blur-md text-muted-foreground"
+          >
+            <Minimize2 className="size-5" />
+          </button>
         </div>
       </div>
 
-      {/* Panel Inferior (Estadísticas y Controles) */}
-      <div className="rounded-t-[2.5rem] bg-background p-6 pb-[max(2rem,env(safe-area-inset-bottom))] shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.1)] dark:border-t dark:border-border dark:shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.5)]">
-        
+      {/* Bottom panel */}
+      <div className="rounded-t-[2.5rem] bg-background p-6 pb-[max(2rem,env(safe-area-inset-bottom))] shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.1)] dark:border-t dark:border-border">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="flex flex-col items-center gap-1">
@@ -109,7 +88,7 @@ export function RouteTrackerModal({ onClose, onSave }: RouteTrackerModalProps) {
           {isPaused ? (
             <>
               <button
-                onClick={handleFinish}
+                onClick={stopTracking}
                 className="flex size-16 items-center justify-center rounded-full bg-neutral-200 text-neutral-900 transition-transform active:scale-95 dark:bg-neutral-800 dark:text-white"
               >
                 <Square className="size-6 fill-current" />
@@ -130,12 +109,6 @@ export function RouteTrackerModal({ onClose, onSave }: RouteTrackerModalProps) {
             </button>
           )}
         </div>
-        
-        {isPaused && (
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Ruta pausada. Mantén pulsado el cuadrado para finalizar.
-          </p>
-        )}
       </div>
     </div>
   );

@@ -22,9 +22,21 @@ interface MapViewProps {
 function MapUpdater({ coordinates }: { coordinates: Coordinate[] }) {
   const map = useMap();
   useEffect(() => {
-    if (coordinates.length > 0) {
-      const lastCoord = coordinates[coordinates.length - 1];
-      map.setView([lastCoord.lat, lastCoord.lng], 16, { animate: true });
+    if (coordinates.length === 0) return;
+    const lastCoord = coordinates[coordinates.length - 1];
+    // Wait until Leaflet has fully initialised all panes before animating,
+    // otherwise _leaflet_pos is undefined and throws on zoom transitions.
+    const move = () => {
+      try {
+        map.setView([lastCoord.lat, lastCoord.lng], 16, { animate: true });
+      } catch {
+        // Map was torn down mid-animation (e.g. component unmounted), ignore.
+      }
+    };
+    if (map.getPane("mapPane")) {
+      move();
+    } else {
+      map.whenReady(move);
     }
   }, [coordinates, map]);
   return null;
