@@ -98,8 +98,8 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
-        <PastelCard variant="neutral" className="flex min-w-[128px] flex-col gap-2">
+      <div className="-mx-5 grid grid-cols-3 gap-3 px-5 pb-1">
+        <PastelCard variant="neutral" className="flex flex-col gap-2">
           <Flame className="size-4 text-muted-foreground" />
           <div>
             <p className="font-mono text-lg font-medium leading-none">
@@ -108,17 +108,19 @@ export default function Home() {
             <p className="mt-1 text-xs text-muted-foreground">entrenos totales</p>
           </div>
         </PastelCard>
-        <PastelCard variant="neutral" className="flex min-w-[128px] flex-col gap-2">
+
+        <PastelCard variant="neutral" className="flex flex-col gap-2">
           <Layers className="size-4 text-muted-foreground" />
           <div>
             <p className="font-mono text-lg font-medium leading-none">
               {weekVolume.toLocaleString("es-ES")}
-              <span className="text-xs font-normal">kg</span>
+              <span className="text-xs font-normal"> kg</span>
             </p>
             <p className="mt-1 text-xs text-muted-foreground">volumen semana</p>
           </div>
         </PastelCard>
-        <PastelCard variant="neutral" className="flex min-w-[128px] flex-col gap-2">
+
+        <PastelCard variant="neutral" className="flex flex-col gap-2">
           <Timer className="size-4 text-muted-foreground" />
           <div>
             <p className="font-mono text-lg font-medium leading-none">
