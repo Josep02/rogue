@@ -6,6 +6,7 @@ import { PastelCard } from "@/components/ui/pastel-card";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { getDivisionLabel, getRankTier } from "@/lib/ranks";
 import { useRogue } from "@/lib/store/rogue-store";
+import { useWorkoutSession } from "@/lib/store/workout-session-store";
 import type { ComputedRank } from "@/lib/rank-engine";
 import { exerciseSuggestions } from "@/lib/mock-data";
 
@@ -46,6 +47,7 @@ function RankChip({ rank }: { rank: ComputedRank }) {
 
 export default function Home() {
   const { profile, ranks, sessions, todayDay } = useRogue();
+  const { start: startWorkout } = useWorkoutSession();
 
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const weekSessions = sessions.filter(
@@ -90,12 +92,13 @@ export default function Home() {
           {todayDay.exercises.length} ejercicios · {estMinutes} min
         </p>
         <div className="mt-5 flex items-center justify-end">
-          <Link
-            href="/entrenar"
+          <button
+            type="button"
+            onClick={() => startWorkout(todayDay)}
             className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
           >
             Empezar entreno
-          </Link>
+          </button>
         </div>
       </div>
 

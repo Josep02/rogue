@@ -5,10 +5,12 @@ import { BottomNav } from "./bottom-nav";
 import { TopBar } from "./top-bar";
 import { CardioMiniPlayer } from "@/components/cardio/cardio-mini-player";
 import { RouteTrackerModal } from "@/components/cardio/route-tracker-modal";
+import { WorkoutMiniPlayer } from "@/components/workout/workout-mini-player";
+import { WorkoutSessionModal } from "@/components/workout/workout-session-modal";
 
 /** Rutas inmersivas: sin barras, a pantalla completa. */
 function isImmersive(pathname: string) {
-  return pathname === "/onboarding" || pathname.startsWith("/entrenar");
+  return pathname === "/onboarding";
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -25,8 +27,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <TopBar />
               <main className="flex-1 overflow-y-auto px-5 pb-28">{children}</main>
               <CardioMiniPlayer />
+              <WorkoutMiniPlayer />
               <BottomNav />
               <RouteTrackerModal />
+              <WorkoutSessionModal />
           </>
         )}
       </div>

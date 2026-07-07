@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { RogueProvider } from "@/lib/store/rogue-store";
 import { CardioProvider } from "@/lib/store/cardio-store";
+import { WorkoutSessionProvider } from "@/lib/store/workout-session-store";
 import { OnboardingGate } from "@/components/onboarding-gate";
 import "./globals.css";
 
@@ -60,10 +61,12 @@ export default function RootLayout({
       <body className="antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <RogueProvider>
-            <CardioProvider>
-              <AppShell>{children}</AppShell>
-              <OnboardingGate />
-            </CardioProvider>
+            <WorkoutSessionProvider>
+              <CardioProvider>
+                <AppShell>{children}</AppShell>
+                <OnboardingGate />
+              </CardioProvider>
+            </WorkoutSessionProvider>
           </RogueProvider>
         </ThemeProvider>
         <ServiceWorkerRegister />

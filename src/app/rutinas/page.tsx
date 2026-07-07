@@ -4,10 +4,12 @@ import Link from "next/link";
 import { Pencil, Play } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { getExerciseInfo, useRogue } from "@/lib/store/rogue-store";
+import { useWorkoutSession } from "@/lib/store/workout-session-store";
 import { cn } from "@/lib/utils";
 
 export default function RutinasPage() {
   const { routineDays, todayDay } = useRogue();
+  const { start: startWorkout } = useWorkoutSession();
 
   return (
     <div className="flex flex-col gap-5 pt-2 pb-4">
@@ -51,13 +53,14 @@ export default function RutinasPage() {
                   </p>
                 </div>
                 {isToday && (
-                  <Link
-                    href="/entrenar"
+                  <button
+                    type="button"
+                    onClick={() => startWorkout(todayDay)}
                     aria-label="Empezar entreno"
                     className="flex size-10 items-center justify-center rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
                   >
                     <Play className="size-4" />
-                  </Link>
+                  </button>
                 )}
               </div>
 

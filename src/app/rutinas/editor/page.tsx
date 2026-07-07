@@ -15,6 +15,27 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  restrictToVerticalAxis,
+  restrictToParentElement,
+} from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useRogue, getExerciseInfo } from "@/lib/store/rogue-store";
 import { DEMO_EXERCISES, EXERCISE_IMG_BASE } from "@/lib/exercises/repo";
 import { ExerciseSelectorModal } from "@/components/routines/exercise-selector-modal";
@@ -39,6 +60,24 @@ export default function ConstructorPage() {
   );
   const [expandedDay, setExpandedDay] = useState<string>(days[0]?.id ?? "");
   const [selectorForDay, setSelectorForDay] = useState<string | null>(null);
+
+  // --- Reordenar días (arrastrar y soltar la tarjeta completa) ---
+  const sensors = useSensors(
+    // Pequeño umbral para no disparar el arrastre en un simple toque/scroll.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setDays((prev) => {
+      const from = prev.findIndex((d) => d.id === active.id);
+      const to = prev.findIndex((d) => d.id === over.id);
+      if (from === -1 || to === -1) return prev;
+      return arrayMove(prev, from, to);
+    });
+  }, []);
 
   // --- Helpers de días ---
   const updateDay = useCallback((id: string, patch: Partial<RoutineDay>) => {
@@ -123,100 +162,39 @@ export default function ConstructorPage() {
       </div>
 
       {/* Lista de días */}
-      <div className="flex flex-col gap-3">
-        {days.map((day, idx) => {
-          const isOpen = expandedDay === day.id;
-          return (
-            <div
-              key={day.id}
-              className="rounded-3xl border border-border bg-surface overflow-hidden"
-            >
-              {/* Día header */}
-              <button
-                className="flex w-full items-center gap-3 px-4 py-4"
-                onClick={() => setExpandedDay(isOpen ? "" : day.id)}
-              >
-                <GripVertical className="size-4 shrink-0 text-muted-foreground" />
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold">{day.label}</p>
-                  <p className="font-mono text-[11px] text-muted-foreground">
-                    {day.exercises.length} ejercicios · {day.focus}
-                  </p>
-                </div>
-                {isOpen ? (
-                  <ChevronUp className="size-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="size-4 text-muted-foreground" />
-                )}
-              </button>
-
-              {/* Contenido expandido */}
-              {isOpen && (
-                <div className="border-t border-border px-4 pb-4 pt-3 flex flex-col gap-4">
-                  {/* Nombre y enfoque */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1">
-                      <label className="font-mono text-[10px] text-muted-foreground">
-                        NOMBRE
-                      </label>
-                      <input
-                        value={day.label}
-                        onChange={(e) => updateDay(day.id, { label: e.target.value })}
-                        className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="font-mono text-[10px] text-muted-foreground">
-                        ENFOQUE
-                      </label>
-                      <input
-                        value={day.focus}
-                        onChange={(e) => updateDay(day.id, { focus: e.target.value })}
-                        className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Ejercicios */}
-                  <div className="flex flex-col gap-2">
-                    {day.exercises.length === 0 && (
-                      <p className="py-2 text-center text-xs text-muted-foreground">
-                        Sin ejercicios todavía
-                      </p>
-                    )}
-                    {day.exercises.map((ex) => (
-                      <ExerciseRow
-                        key={ex.exerciseId}
-                        ex={ex}
-                        onChange={(patch) => patchExercise(day.id, ex.exerciseId, patch)}
-                        onRemove={() => removeExercise(day.id, ex.exerciseId)}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Botones */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectorForDay(day.id)}
-                      className="flex-1 rounded-2xl border border-dashed border-border py-2.5 text-center text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                    >
-                      + Añadir ejercicio
-                    </button>
-                    {days.length > 1 && (
-                      <button
-                        onClick={() => removeDay(day.id)}
-                        className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <DndContext
+        id="routine-days-dnd"
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={days.map((d) => d.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="flex flex-col gap-3">
+            {days.map((day) => (
+              <SortableDay
+                key={day.id}
+                day={day}
+                isOpen={expandedDay === day.id}
+                canRemove={days.length > 1}
+                onToggle={() =>
+                  setExpandedDay((cur) => (cur === day.id ? "" : day.id))
+                }
+                onUpdate={(patch) => updateDay(day.id, patch)}
+                onPatchExercise={(exId, patch) =>
+                  patchExercise(day.id, exId, patch)
+                }
+                onRemoveExercise={(exId) => removeExercise(day.id, exId)}
+                onAddExercise={() => setSelectorForDay(day.id)}
+                onRemoveDay={() => removeDay(day.id)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Añadir día */}
       <button
@@ -240,6 +218,152 @@ export default function ConstructorPage() {
           setSelectorForDay(null);
         }}
       />
+    </div>
+  );
+}
+
+// ── Día ordenable (tarjeta completa arrastrable) ─────────────────────────────
+function SortableDay({
+  day,
+  isOpen,
+  canRemove,
+  onToggle,
+  onUpdate,
+  onPatchExercise,
+  onRemoveExercise,
+  onAddExercise,
+  onRemoveDay,
+}: {
+  day: RoutineDay;
+  isOpen: boolean;
+  canRemove: boolean;
+  onToggle: () => void;
+  onUpdate: (patch: Partial<RoutineDay>) => void;
+  onPatchExercise: (exId: string, patch: Partial<RoutineExercise>) => void;
+  onRemoveExercise: (exId: string) => void;
+  onAddExercise: () => void;
+  onRemoveDay: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: day.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "rounded-3xl border bg-surface overflow-hidden",
+        isDragging
+          ? "z-10 border-foreground/40 shadow-[0_16px_40px_-12px_rgba(23,24,28,0.35)]"
+          : "border-border",
+      )}
+    >
+      {/* Día header */}
+      <div className="flex w-full items-center gap-1 px-4 py-4">
+        <span
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label="Arrastra para reordenar el día"
+          title="Arrastra para reordenar"
+          className="flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:cursor-grabbing"
+        >
+          <GripVertical className="size-4" />
+        </span>
+        <button
+          type="button"
+          className="flex flex-1 items-center gap-2 py-0 text-left"
+          onClick={onToggle}
+        >
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold">{day.label}</p>
+            <p className="font-mono text-[11px] text-muted-foreground">
+              {day.exercises.length} ejercicios · {day.focus}
+            </p>
+          </div>
+          {isOpen ? (
+            <ChevronUp className="size-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+          )}
+        </button>
+      </div>
+
+      {/* Contenido expandido */}
+      {isOpen && (
+        <div className="border-t border-border px-4 pb-4 pt-3 flex flex-col gap-4">
+          {/* Nombre y enfoque */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="font-mono text-[10px] text-muted-foreground">
+                NOMBRE
+              </label>
+              <input
+                value={day.label}
+                onChange={(e) => onUpdate({ label: e.target.value })}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="font-mono text-[10px] text-muted-foreground">
+                ENFOQUE
+              </label>
+              <input
+                value={day.focus}
+                onChange={(e) => onUpdate({ focus: e.target.value })}
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
+              />
+            </div>
+          </div>
+
+          {/* Ejercicios */}
+          <div className="flex flex-col gap-2">
+            {day.exercises.length === 0 && (
+              <p className="py-2 text-center text-xs text-muted-foreground">
+                Sin ejercicios todavía
+              </p>
+            )}
+            {day.exercises.map((ex) => (
+              <ExerciseRow
+                key={ex.exerciseId}
+                ex={ex}
+                onChange={(patch) => onPatchExercise(ex.exerciseId, patch)}
+                onRemove={() => onRemoveExercise(ex.exerciseId)}
+              />
+            ))}
+          </div>
+
+          {/* Botones */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onAddExercise}
+              className="flex-1 rounded-2xl border border-dashed border-border py-2.5 text-center text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+            >
+              + Añadir ejercicio
+            </button>
+            {canRemove && (
+              <button
+                onClick={onRemoveDay}
+                className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
