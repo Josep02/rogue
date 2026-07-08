@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Lock, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Lock, X } from "lucide-react";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { MuscleMap } from "@/components/exercise/muscle-map";
@@ -15,7 +15,6 @@ import {
   getDivisionLabel,
   getNextRankTier,
   getRankTier,
-  MUSCLE_GROUPS,
   RANK_STYLES,
   RANK_TIERS,
   type MuscleGroup,
@@ -25,13 +24,30 @@ import {
   MUSCLE_TO_GROUP,
   type MuscleId,
 } from "@/lib/exercises/types";
+import { cn } from "@/lib/utils";
 
-function BodyRankSummary({ ranks }: { ranks: ComputedRank[] }) {
+function BodyRankSummary({
+  ranks,
+  muscleRanks,
+}: {
+  ranks: ComputedRank[];
+  muscleRanks: ComputedMuscleRank[];
+}) {
+  const [view, setView] = useState<"media" | "musculo">("media");
+
   const colors: Partial<Record<MuscleId, string>> = {};
-  for (const muscleId of Object.keys(MUSCLE_TO_GROUP) as MuscleId[]) {
-    const group = MUSCLE_TO_GROUP[muscleId];
-    const rank = ranks.find((r) => r.muscle === group);
-    if (rank?.ranked) colors[muscleId] = `var(--rank-${rank.tier})`;
+  if (view === "media") {
+    // Cada musculo se pinta con el rango (promedio) de su grupo.
+    for (const muscleId of Object.keys(MUSCLE_TO_GROUP) as MuscleId[]) {
+      const group = MUSCLE_TO_GROUP[muscleId];
+      const rank = ranks.find((r) => r.muscle === group);
+      if (rank?.ranked) colors[muscleId] = `var(--rank-${rank.tier})`;
+    }
+  } else {
+    // Cada musculo se pinta con su propio rango individual.
+    for (const m of muscleRanks) {
+      if (m.ranked) colors[m.muscle] = `var(--rank-${m.tier})`;
+    }
   }
 
   return (
@@ -39,63 +55,90 @@ function BodyRankSummary({ ranks }: { ranks: ComputedRank[] }) {
       <p className="text-center font-mono text-xs tracking-[0.2em] text-muted-foreground">
         TU CUERPO POR RANGO
       </p>
-      <MuscleMap colors={colors} showLegend={false} />
-      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5">
-        {RANK_TIERS.map((tier) => (
-          <span
-            key={tier.id}
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
+
+      <div className="mx-auto flex w-full max-w-[220px] rounded-full bg-muted p-1">
+        {(
+          [
+            ["media", "Media"],
+            ["musculo", "Por musculo"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setView(id)}
+            className={cn(
+              "flex-1 rounded-full py-1.5 text-xs font-medium transition-colors",
+              view === id
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground",
+            )}
           >
-            <span
-              className="size-2.5 rounded-full"
-              style={{ background: `var(--rank-${tier.id})` }}
-            />
-            {tier.label}
-          </span>
+            {label}
+          </button>
         ))}
-        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className="size-2.5 rounded-full bg-muted ring-1 ring-border" />
-          Sin rango
-        </span>
       </div>
+
+      <MuscleMap colors={colors} showLegend={false} />
     </PastelCard>
   );
 }
 
+/** Leyenda de como funcionan los rangos. Plegada por defecto. */
 function RankExplainer() {
-  return (
-    <PastelCard variant="neutral" className="flex flex-col gap-4">
-      <div>
-        <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
-          COMO FUNCIONAN
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-foreground/90">
-          Cada grupo tiene su{" "}
-          <span className="font-semibold">rango propio</span>, segun tu fuerza
-          relativa: tu mejor 1RM estimado entre tu peso corporal, comparado con
-          estandares. Toca un grupo para ver el rango de cada musculo que lo
-          forma.
-        </p>
-      </div>
+  const [open, setOpen] = useState(false);
 
-      <div className="flex items-end justify-between gap-1">
-        {RANK_TIERS.map((tier) => {
-          const family = RANK_STYLES[tier.id].colorFamily;
-          return (
-            <div
-              key={tier.id}
-              className="flex flex-1 flex-col items-center gap-1 text-center"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/ranks/${family}-1.svg`} alt="" className="size-9" />
-              <p className="text-[10px] font-medium leading-none">{tier.label}</p>
-              <p className="font-mono text-[9px] leading-none text-muted-foreground">
-                {tier.divisions} div.
-              </p>
-            </div>
-          );
-        })}
-      </div>
+  return (
+    <PastelCard variant="neutral" className="flex flex-col gap-0 p-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between gap-2 px-4 py-3.5 text-left"
+        aria-expanded={open}
+      >
+        <span className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
+          COMO FUNCIONAN
+        </span>
+        <ChevronDown
+          className={cn(
+            "size-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-4 px-4 pb-4">
+          <p className="text-sm leading-relaxed text-foreground/90">
+            Cada grupo tiene su{" "}
+            <span className="font-semibold">rango propio</span>, segun tu fuerza
+            relativa: tu mejor 1RM estimado entre tu peso corporal, comparado con
+            estandares. Toca un grupo para ver el rango de cada musculo que lo
+            forma.
+          </p>
+
+          <div className="flex items-end justify-between gap-1">
+            {RANK_TIERS.map((tier) => {
+              const family = RANK_STYLES[tier.id].colorFamily;
+              return (
+                <div
+                  key={tier.id}
+                  className="flex flex-1 flex-col items-center gap-1 text-center"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/ranks/${family}-1.svg`} alt="" className="size-9" />
+                  <p className="text-[10px] font-medium leading-none">
+                    {tier.label}
+                  </p>
+                  <p className="font-mono text-[9px] leading-none text-muted-foreground">
+                    {tier.divisions} div.
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </PastelCard>
   );
 }
@@ -120,12 +163,14 @@ function RankCard({
         </span>
         <p className="text-sm font-semibold">{rank.muscle}</p>
         <p className="font-mono text-xs text-muted-foreground">SIN RANGO</p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="flex min-h-8 items-center text-[11px] text-muted-foreground">
           {faltan > 0
             ? `Entrena ${faltan} sesion${faltan === 1 ? "" : "es"} mas`
             : "Registra carga para desbloquear"}
         </p>
-        <ChevronDown className="size-3.5 text-muted-foreground" />
+        <span className="mt-auto flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground/80">
+          Ver musculos <ChevronRight className="size-3" />
+        </span>
       </button>
     );
   }
@@ -135,6 +180,12 @@ function RankCard({
   const style = RANK_STYLES[rank.tier];
   const atLastDivision = rank.division >= tier.divisions;
   const isMaxRank = atLastDivision && !next;
+
+  const nextLabel = isMaxRank
+    ? "Rango maximo"
+    : atLastDivision && next
+      ? `${rank.progress}% → ${next.label}`
+      : `${rank.progress}% → Div. ${getDivisionLabel(tier, rank.division + 1)}`;
 
   return (
     <button
@@ -153,14 +204,12 @@ function RankCard({
           style={{ width: `${rank.progress}%` }}
         />
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        {isMaxRank
-          ? "Rango maximo"
-          : `${rank.progress}% hacia ${
-              atLastDivision && next ? next.label : "siguiente division"
-            }`}
+      <p className="flex min-h-8 items-center text-[11px] text-muted-foreground">
+        {nextLabel}
       </p>
-      <ChevronDown className="size-3.5 text-muted-foreground" />
+      <span className="mt-auto flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground/80">
+        Ver musculos <ChevronRight className="size-3" />
+      </span>
     </button>
   );
 }
@@ -194,12 +243,66 @@ function MuscleRow({ rank }: { rank: ComputedMuscleRank }) {
           style={{ width: `${rank.progress}%`, background: color }}
         />
       </div>
-      <span
-        className="shrink-0 whitespace-nowrap font-mono text-xs"
-        style={{ color }}
-      >
-        {tier.label} {getDivisionLabel(tier, rank.division)}
+      <span className="shrink-0 whitespace-nowrap font-mono text-xs font-medium text-foreground">
+        <span style={{ color }}>●</span> {tier.label}{" "}
+        {getDivisionLabel(tier, rank.division)}
       </span>
+    </div>
+  );
+}
+
+/** Modal centrado que explica los dos modos de puntuacion. */
+function ScoringInfoModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden />
+      {/* Replica el ancho del contenido (shell + px-5) para alinear con las
+          tarjetas. En md el shell mide 440 menos su borde de 1px por lado. */}
+      <div className="relative z-10 w-full px-5 md:max-w-[438px]">
+        <div className="w-full rounded-3xl border border-border bg-surface p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <p className="text-base font-semibold">Como se puntua cada musculo</p>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="-mr-1 -mt-1 shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-4 text-sm">
+            <div className="flex flex-col gap-1">
+              <span className="w-fit rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                Fuerza
+              </span>
+              <p className="leading-relaxed text-muted-foreground">
+                Cuando entrenas el musculo como{" "}
+                <span className="font-medium text-foreground">principal con carga</span>.
+                Mide tu fuerza relativa: tu mejor 1RM estimado dividido entre tu peso
+                corporal, comparado con estandares.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="w-fit rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                Volumen
+              </span>
+              <p className="leading-relaxed text-muted-foreground">
+                Cuando el musculo solo recibe{" "}
+                <span className="font-medium text-foreground">trabajo secundario o de peso corporal</span>.
+                Mide las series efectivas acumuladas en las ultimas semanas.
+              </p>
+            </div>
+
+            <p className="border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
+              El rango de un grupo es el <span className="font-medium">promedio</span> de
+              los musculos que lo forman.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -215,51 +318,120 @@ function GroupSheet({
   muscles: ComputedMuscleRank[];
   onClose: () => void;
 }) {
+  const [view, setView] = useState<"media" | "musculos">("musculos");
+  const [infoOpen, setInfoOpen] = useState(false);
+
+  const rankedMuscles = muscles.filter((m) => m.ranked).length;
+  const tier = groupRank?.ranked ? getRankTier(groupRank.tier) : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-        aria-hidden
-      />
-      <div className="no-scrollbar relative z-10 max-h-[80vh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl border-t border-border bg-surface p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <div className="mb-4 flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            {groupRank?.ranked && (
-              <RankBadge
-                tier={groupRank.tier}
-                division={groupRank.division}
-                size="sm"
-              />
-            )}
-            <div>
-              <p className="text-lg font-semibold">{group}</p>
-              <p className="font-mono text-xs text-muted-foreground">
-                {groupRank?.ranked
-                  ? `${getRankTier(groupRank.tier).label} ${getDivisionLabel(
-                      getRankTier(groupRank.tier),
-                      groupRank.division,
-                    )} · promedio`
-                  : "Sin rango"}
-              </p>
-            </div>
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden />
+      {/* Bottom-sheet: sube desde abajo pero con el mismo ancho y margenes
+          laterales que las tarjetas de contenido (px-5). */}
+      <div className="relative z-10 w-full px-5 md:max-w-[438px]">
+        <div className="no-scrollbar max-h-[80vh] w-full overflow-y-auto rounded-t-3xl border border-border bg-surface p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          {/* Cabecera */}
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-lg font-semibold">{group}</p>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setInfoOpen(true)}
+              aria-label="Que significa fuerza y volumen"
+              className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Info className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <X className="size-5" />
-          </button>
         </div>
 
-        <div className="flex flex-col divide-y divide-border">
-          {muscles.map((m) => (
-            <MuscleRow key={m.muscle} rank={m} />
+        {/* Toggle media / musculo a musculo */}
+        <div className="mb-4 flex rounded-full bg-muted p-1">
+          {(
+            [
+              ["media", "Media"],
+              ["musculos", "Musculo a musculo"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              className={cn(
+                "flex-1 rounded-full py-1.5 text-xs font-medium transition-colors",
+                view === id
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground",
+              )}
+            >
+              {label}
+            </button>
           ))}
         </div>
+
+        {view === "media" ? (
+          <div className="flex flex-col items-center gap-3 py-2 text-center">
+            {groupRank?.ranked && tier ? (
+              <>
+                <RankBadge
+                  tier={groupRank.tier}
+                  division={groupRank.division}
+                  size="md"
+                />
+                <div>
+                  <p
+                    className="font-mono text-sm font-semibold"
+                    style={{ color: `var(--rank-${groupRank.tier})` }}
+                  >
+                    {tier.label} {getDivisionLabel(tier, groupRank.division)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Promedio de {rankedMuscles} de {muscles.length} musculos con
+                    rango
+                  </p>
+                </div>
+                <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${groupRank.progress}%`,
+                      background: `var(--rank-${groupRank.tier})`,
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="flex size-16 items-center justify-center rounded-3xl bg-muted text-muted-foreground ring-1 ring-border">
+                  <Lock className="size-6" />
+                </span>
+                <p className="text-sm font-semibold">Sin rango todavia</p>
+                <p className="text-xs text-muted-foreground">
+                  Entrena este grupo para desbloquear su rango.
+                </p>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col divide-y divide-border">
+            {muscles.map((m) => (
+              <MuscleRow key={m.muscle} rank={m} />
+            ))}
+          </div>
+        )}
+        </div>
       </div>
+
+      {infoOpen && <ScoringInfoModal onClose={() => setInfoOpen(false)} />}
     </div>
   );
 }
@@ -280,7 +452,7 @@ export default function RangosPage() {
 
       <RankExplainer />
 
-      <BodyRankSummary ranks={ranks} />
+      <BodyRankSummary ranks={ranks} muscleRanks={muscleRanks} />
 
       <div className="grid grid-cols-2 gap-3">
         {ranks.map((rank) => (

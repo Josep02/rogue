@@ -7,11 +7,13 @@ export type RankTier = {
   divisions: number;
 };
 
+// Los ids se mantienen (bronce/plata/...) por compatibilidad con colores,
+// SVGs y datos guardados; solo cambian las etiquetas a una jerarquia de nivel.
 export const RANK_TIERS: RankTier[] = [
-  { id: "bronce", label: "Bronce", order: 1, divisions: 3 },
-  { id: "plata", label: "Plata", order: 2, divisions: 3 },
-  { id: "oro", label: "Oro", order: 3, divisions: 3 },
-  { id: "esmeralda", label: "Esmeralda", order: 4, divisions: 4 },
+  { id: "bronce", label: "Principiante", order: 1, divisions: 3 },
+  { id: "plata", label: "Intermedio", order: 2, divisions: 3 },
+  { id: "oro", label: "Avanzado", order: 3, divisions: 3 },
+  { id: "esmeralda", label: "Experto", order: 4, divisions: 4 },
   { id: "maestro", label: "Maestro", order: 5, divisions: 3 },
 ];
 

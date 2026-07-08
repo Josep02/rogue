@@ -179,11 +179,13 @@ export function ExerciseSelectorModal({
       style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
-      <div
-        className="flex max-h-[90dvh] flex-col rounded-t-3xl border-t border-border bg-background shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 pb-3 pt-4">
+      {/* Mismo margen lateral (px-5) que las tarjetas de contenido. */}
+      <div className="w-full px-5">
+        <div
+          className="flex max-h-[90dvh] flex-col rounded-t-3xl border border-border bg-background shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-5 pb-3 pt-4">
           <div className="flex items-center gap-3">
             <p className="font-semibold">Añadir ejercicio</p>
           </div>
@@ -236,6 +238,7 @@ export function ExerciseSelectorModal({
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

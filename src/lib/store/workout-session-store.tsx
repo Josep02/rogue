@@ -39,6 +39,7 @@ type WorkoutSessionContextValue = {
   toggleDone: (exId: string, i: number, restSec: number) => void;
   addSet: (exId: string) => void;
   removeSet: (exId: string, i: number) => void;
+  replaceExercise: (oldExId: string, newExId: string) => void;
   skipRest: () => void;
   finish: () => void;
 };
@@ -165,6 +166,26 @@ export function WorkoutSessionProvider({
     });
   }, []);
 
+  const replaceExercise = useCallback((oldExId: string, newExId: string) => {
+    if (oldExId === newExId) return;
+    setDay((prev) =>
+      prev
+        ? {
+            ...prev,
+            exercises: prev.exercises.map((e) =>
+              e.exerciseId === oldExId ? { ...e, exerciseId: newExId } : e,
+            ),
+          }
+        : prev,
+    );
+    // Conserva las series ya introducidas bajo el nuevo ejercicio.
+    setRows((prev) => {
+      if (!(oldExId in prev)) return prev;
+      const { [oldExId]: existing, ...rest } = prev;
+      return { ...rest, [newExId]: existing };
+    });
+  }, []);
+
   const skipRest = useCallback(() => setRestUntil(null), []);
 
   const finish = useCallback(() => {
@@ -219,6 +240,7 @@ export function WorkoutSessionProvider({
     toggleDone,
     addSet,
     removeSet,
+    replaceExercise,
     skipRest,
     finish,
   };

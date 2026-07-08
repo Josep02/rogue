@@ -1,16 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import {
   ArrowRight,
   Check,
   Minimize2,
   Plus,
+  Repeat2,
   Trash2,
   Trophy,
   X,
 } from "lucide-react";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { PastelCard } from "@/components/ui/pastel-card";
+import { ExerciseSelectorModal } from "@/components/routines/exercise-selector-modal";
 import { getExerciseInfo } from "@/lib/store/rogue-store";
 import { useWorkoutSession } from "@/lib/store/workout-session-store";
 import { getDivisionLabel, getRankTier } from "@/lib/ranks";
@@ -35,9 +38,13 @@ export function WorkoutSessionModal() {
     toggleDone,
     addSet,
     removeSet,
+    replaceExercise,
     skipRest,
     finish,
   } = useWorkoutSession();
+
+  // Ejercicio que se esta sustituyendo (abre el selector).
+  const [swapForExId, setSwapForExId] = useState<string | null>(null);
 
   if (!active || minimized || !day) return null;
 
@@ -168,11 +175,23 @@ export function WorkoutSessionModal() {
               key={ex.exerciseId}
               className="rounded-3xl border border-border bg-surface p-4"
             >
-              <div className="mb-3 flex items-baseline justify-between">
-                <p className="text-sm font-semibold">{info.nombre}</p>
-                <p className="font-mono text-[11px] text-muted-foreground">
-                  {info.grupo}
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {info.nombre}
                 </p>
+                <div className="flex shrink-0 items-center gap-2">
+                  <p className="font-mono text-[11px] text-muted-foreground">
+                    {info.grupo}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSwapForExId(ex.exerciseId)}
+                    aria-label={`Cambiar ${info.nombre}`}
+                    className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:scale-95"
+                  >
+                    <Repeat2 className="size-4" />
+                  </button>
+                </div>
               </div>
               <div className="flex flex-col gap-2">
                 {(rows[ex.exerciseId] ?? []).map((s, i) => (
@@ -278,6 +297,16 @@ export function WorkoutSessionModal() {
           <Check className="size-4" />
         </button>
       </div>
+
+      <ExerciseSelectorModal
+        open={swapForExId !== null}
+        onClose={() => setSwapForExId(null)}
+        excludeIds={day.exercises.map((e) => e.exerciseId)}
+        onSelect={(newEx) => {
+          if (swapForExId) replaceExercise(swapForExId, newEx.id);
+          setSwapForExId(null);
+        }}
+      />
     </div>
   );
 }
