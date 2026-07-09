@@ -46,10 +46,10 @@ export default async function ExercisePage({ params }: PageProps) {
       <div>
         <Link
           href="/biblioteca"
-          className="flex w-fit items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+          aria-label="Volver a biblioteca"
+          className="flex size-10 items-center justify-center rounded-full bg-surface hover:bg-muted"
         >
-          <ArrowLeft className="size-3.5" />
-          Biblioteca
+          <ArrowLeft className="size-5" />
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
           {exercise.nombre}
