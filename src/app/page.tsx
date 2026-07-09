@@ -98,7 +98,7 @@ function TodayCard({
   onStart: () => void;
 }) {
   return (
-    <div className="h-full min-h-[212px] rounded-3xl bg-white p-5 text-neutral-900 shadow-[0_16px_48px_-16px_rgba(23,24,28,0.25)]">
+    <div className="h-full min-h-[212px] rounded-3xl p-5 bg-surface text-foreground border border-border">
       <div className="flex items-start justify-between">
         <span className="rounded-full bg-neutral-100 px-3 py-1.5 font-mono text-[10px] font-medium tracking-[0.15em] text-neutral-600">
           HOY · {todayDay.label.toUpperCase()}
@@ -114,7 +114,7 @@ function TodayCard({
         <button
           type="button"
           onClick={onStart}
-          className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-neutral-900"
         >
           Empezar entreno
         </button>
@@ -206,7 +206,7 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
   }
 
   return (
-    <div className="h-full min-h-[212px] rounded-3xl bg-white p-5 text-neutral-900 shadow-[0_16px_48px_-16px_rgba(23,24,28,0.25)]">
+    <div className="h-full min-h-[212px] rounded-3xl p-5 bg-surface text-foreground border border-border">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -311,8 +311,8 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
                           : "text-neutral-400",
                       d.isToday && !d.trained && "ring-2 ring-neutral-900 ring-offset-1",
                       d.trained &&
-                        selectedKey === d.key &&
-                        "ring-2 ring-neutral-900 ring-offset-1",
+                      selectedKey === d.key &&
+                      "ring-2 ring-neutral-900 ring-offset-1",
                     )}
                   >
                     {d.num}

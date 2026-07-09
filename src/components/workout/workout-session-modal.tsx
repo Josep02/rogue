@@ -51,8 +51,8 @@ export function WorkoutSessionModal() {
   // ── Resumen de sesion completada ──────────────────────────────────────────
   if (phase === "done" && result) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-background">
-        <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 pb-6 pt-[max(2rem,env(safe-area-inset-top))]">
+      <div className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)]">
+        <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 pb-6 pt-10">
           <div className="flex flex-col items-center gap-2 pt-4 text-center">
             <span className="flex size-16 items-center justify-center rounded-full bg-accent/15 text-accent">
               <Trophy className="size-8" />
@@ -141,8 +141,8 @@ export function WorkoutSessionModal() {
 
   // ── Sesion activa ─────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      <header className="flex shrink-0 items-center justify-between px-4 py-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)]">
+      <header className="flex shrink-0 items-center justify-between px-4 py-2 pt-10">
         <button
           type="button"
           onClick={close}

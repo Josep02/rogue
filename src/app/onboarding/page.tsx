@@ -92,7 +92,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col px-6 pb-8 pt-8">
+    <div className="flex flex-1 flex-col px-6 pb-8 pt-10">
       <div className="mb-4 h-10">
         {step > 0 && (
           <button

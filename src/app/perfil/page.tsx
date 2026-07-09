@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowLeft,
   ChevronRight,
   Dumbbell,
   Flame,
@@ -9,6 +10,7 @@ import {
   Shield,
   Weight,
 } from "lucide-react";
+import Link from "next/link";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -70,16 +72,30 @@ export default function PerfilPage() {
   const rankedCount = ranks.filter((r) => r.ranked).length;
 
   return (
-    <div className="flex flex-col gap-6 pt-2 pb-4">
-      <div className="flex items-center gap-4">
-        <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-accent text-xl font-semibold text-accent-foreground">
+    <div className="flex h-full flex-col bg-background">
+      <header className="relative flex shrink-0 items-center px-4 py-2 pt-10">
+        <Link 
+          href="/" 
+          aria-label="Volver atrás" 
+          className="flex size-10 z-10 items-center justify-center rounded-full bg-surface border border-border shadow-sm text-muted-foreground transition-all hover:bg-muted active:scale-95"
+        >
+          <ArrowLeft className="size-5 text-foreground" />
+        </Link>
+        <span className="absolute inset-0 flex items-center justify-center pt-10 text-sm font-semibold pointer-events-none">
+          Perfil
+        </span>
+      </header>
+
+      <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 pb-8 pt-2">
+        <div className="flex flex-col items-center text-center gap-3 pt-2 pb-2">
+        <span className="flex size-24 shrink-0 items-center justify-center rounded-full bg-accent text-3xl font-semibold text-accent-foreground shadow-sm">
           {initials}
         </span>
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight">
+        <div className="flex flex-col items-center">
+          <h1 className="text-2xl font-semibold tracking-tight">
             {profile.name || "Atleta"}
           </h1>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Objetivo: {profile.goal}
           </p>
         </div>
@@ -167,6 +183,7 @@ export default function PerfilPage() {
           <LogOut className="size-4" />
           Cerrar sesion
         </button>
+      </div>
       </div>
     </div>
   );

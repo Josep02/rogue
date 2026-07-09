@@ -27,7 +27,7 @@ export default function CardioPage() {
       </div>
 
       {/* Main card */}
-      <div className="rounded-3xl bg-white p-5 text-neutral-900 shadow-[0_16px_48px_-16px_rgba(23,24,28,0.25)] dark:bg-neutral-900 dark:text-neutral-100">
+      <div className="rounded-3xl p-5 bg-surface text-foreground border border-border">
         <div className="flex items-start justify-between">
           <span className="rounded-full bg-neutral-100 px-3 py-1.5 font-mono text-[10px] font-medium tracking-[0.15em] text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
             HOY
