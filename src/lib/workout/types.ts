@@ -1,4 +1,4 @@
-import type { MuscleGroup } from "@/lib/ranks";
+import type { ExerciseCategory } from "@/lib/exercises/types";
 
 export type Sex = "hombre" | "mujer";
 
@@ -49,7 +49,8 @@ export type Routine = {
 /** Una serie efectivamente registrada en una sesion. */
 export type LoggedSet = {
   exerciseId: string;
-  grupo: MuscleGroup;
+  /** Categoria del ejercicio (para mostrar tags de historial), no la region de rango. */
+  grupo: ExerciseCategory;
   weightKg: number;
   reps: number;
 };

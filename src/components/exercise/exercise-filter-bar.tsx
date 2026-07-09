@@ -3,14 +3,15 @@
 import {
   DIFFICULTY_LABELS,
   EQUIPMENT_LABELS,
+  EXERCISE_CATEGORIES,
   type DifficultyId,
   type EquipmentId,
+  type ExerciseCategory,
 } from "@/lib/exercises/types";
-import { MUSCLE_GROUPS, type MuscleGroup } from "@/lib/ranks";
 import { cn } from "@/lib/utils";
 
 export type ExerciseFilterValue = {
-  grupo?: MuscleGroup;
+  grupo?: ExerciseCategory;
   equipo?: EquipmentId;
   dificultad?: DifficultyId;
 };
@@ -88,7 +89,7 @@ export function ExerciseFilterBar({
         >
           Todos
         </Chip>
-        {MUSCLE_GROUPS.map((g) => (
+        {EXERCISE_CATEGORIES.map((g) => (
           <Chip
             key={g}
             active={value.grupo === g}

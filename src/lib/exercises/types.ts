@@ -40,7 +40,7 @@ export const MUSCLE_LABELS: Record<MuscleId, string> = {
   oblicuos: "Oblicuos",
 };
 
-/** A que grupo (de rangos) pertenece cada musculo granular. */
+/** A que region de rango pertenece cada musculo granular. */
 export const MUSCLE_TO_GROUP: Record<MuscleId, MuscleGroup> = {
   pectoral: "Pecho",
   dorsal: "Espalda",
@@ -48,18 +48,37 @@ export const MUSCLE_TO_GROUP: Record<MuscleId, MuscleGroup> = {
   lumbar: "Espalda",
   trapecio: "Espalda",
   deltoide: "Hombros",
-  biceps: "Biceps",
-  antebrazo: "Biceps",
-  triceps: "Triceps",
-  cuadriceps: "Piernas",
-  isquiotibiales: "Piernas",
-  gemelos: "Piernas",
-  aductores: "Piernas",
-  abductores: "Piernas",
-  gluteo: "Gluteos",
+  biceps: "Brazo",
+  antebrazo: "Brazo",
+  triceps: "Brazo",
+  cuadriceps: "Pierna",
+  isquiotibiales: "Pierna",
+  gemelos: "Pierna",
+  aductores: "Pierna",
+  abductores: "Pierna",
+  gluteo: "Pierna",
   abdominales: "Core",
   oblicuos: "Core",
 };
+
+/**
+ * Categoria propia del ejercicio (biblioteca/filtros): mas granular que la
+ * region de rango (MuscleGroup) para no perder capacidad de busqueda -
+ * "solo ejercicios de biceps" sigue siendo un filtro valido aunque el rango
+ * de Biceps y Triceps ahora se fusionen en el rango de "Brazo".
+ */
+export const EXERCISE_CATEGORIES = [
+  "Pecho",
+  "Espalda",
+  "Hombros",
+  "Biceps",
+  "Triceps",
+  "Piernas",
+  "Gluteos",
+  "Core",
+] as const;
+
+export type ExerciseCategory = (typeof EXERCISE_CATEGORIES)[number];
 
 export type EquipmentId =
   | "barra"
@@ -94,8 +113,8 @@ export type Exercise = {
   /** Slug propio en espanol, usado en la URL /biblioteca/[id]. */
   id: string;
   nombre: string;
-  /** Grupo muscular principal (el de los rangos). */
-  grupo: MuscleGroup;
+  /** Categoria muscular principal (para biblioteca/filtros, no para rangos). */
+  grupo: ExerciseCategory;
   equipo: EquipmentId;
   dificultad: DifficultyId;
   mecanica: "compuesto" | "aislamiento";
@@ -112,7 +131,7 @@ export type Exercise = {
 
 export type ExerciseFilters = {
   query?: string;
-  grupo?: MuscleGroup;
+  grupo?: ExerciseCategory;
   equipo?: EquipmentId;
   dificultad?: DifficultyId;
 };

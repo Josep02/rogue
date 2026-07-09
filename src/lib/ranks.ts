@@ -72,14 +72,17 @@ export function getNextRankTier(id: RankId): RankTier | null {
   return RANK_TIERS.find((tier) => tier.order === current.order + 1) ?? null;
 }
 
+// Region de rango: agrega musculos granulares (ver MUSCLE_TO_GROUP en
+// exercises/types.ts). Brazo = biceps+triceps+antebrazo; Pierna = cuadriceps+
+// isquiotibiales+gemelos+gluteo+aductores+abductores. Distinto de
+// ExerciseCategory (exercises/types.ts), que sigue teniendo 8 categorias para
+// filtrar la biblioteca de ejercicios sin perder esa granularidad.
 export const MUSCLE_GROUPS = [
   "Pecho",
   "Espalda",
   "Hombros",
-  "Biceps",
-  "Triceps",
-  "Piernas",
-  "Gluteos",
+  "Brazo",
+  "Pierna",
   "Core",
 ] as const;
 

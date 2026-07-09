@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import type { MuscleGroup } from "@/lib/ranks";
+import type { ExerciseCategory } from "@/lib/exercises/types";
 import { DEMO_EXERCISES } from "@/lib/exercises/repo";
 import {
   aggregateToGroups,
@@ -47,7 +48,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   notifyWeeklySummary: false,
 };
 
-type ExerciseInfo = { nombre: string; grupo: MuscleGroup };
+type ExerciseInfo = { nombre: string; grupo: ExerciseCategory };
 const EXERCISE_INFO = new Map<string, ExerciseInfo>(
   DEMO_EXERCISES.map((e) => [e.id, { nombre: e.nombre, grupo: e.grupo }]),
 );

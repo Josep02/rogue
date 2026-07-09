@@ -1,9 +1,9 @@
-import type { MuscleGroup } from "@/lib/ranks";
 import exercisesData from "@/data/exercises.es.json";
 import type {
   DifficultyId,
   EquipmentId,
   Exercise,
+  ExerciseCategory,
   ExerciseFilters,
 } from "./types";
 
@@ -66,11 +66,11 @@ export async function getAllExerciseIds(): Promise<string[]> {
   return EXERCISES.map((exercise) => exercise.id);
 }
 
-/** Numero de ejercicios por grupo muscular (para chips/contador). */
+/** Numero de ejercicios por categoria (para chips/contador). */
 export function countByGroup(
   exercises: Exercise[],
-): Partial<Record<MuscleGroup, number>> {
-  const counts: Partial<Record<MuscleGroup, number>> = {};
+): Partial<Record<ExerciseCategory, number>> {
+  const counts: Partial<Record<ExerciseCategory, number>> = {};
   for (const exercise of exercises) {
     counts[exercise.grupo] = (counts[exercise.grupo] ?? 0) + 1;
   }

@@ -451,7 +451,7 @@ export default function RangosPage() {
 
       <BodyRankSummary ranks={ranks} muscleRanks={muscleRanks} />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {ranks.map((rank) => (
           <RankCard
             key={rank.muscle}
