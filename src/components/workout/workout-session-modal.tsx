@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { PastelCard } from "@/components/ui/pastel-card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ExerciseSelectorModal } from "@/components/routines/exercise-selector-modal";
 import { getExerciseInfo } from "@/lib/store/rogue-store";
 import { useWorkoutSession } from "@/lib/store/workout-session-store";
@@ -45,6 +46,8 @@ export function WorkoutSessionModal() {
 
   // Ejercicio que se esta sustituyendo (abre el selector).
   const [swapForExId, setSwapForExId] = useState<string | null>(null);
+  // Confirmacion antes de descartar la sesion activa.
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   if (!active || minimized || !day) return null;
 
@@ -145,7 +148,7 @@ export function WorkoutSessionModal() {
       <header className="flex shrink-0 items-center justify-between px-4 py-2 pt-10">
         <button
           type="button"
-          onClick={close}
+          onClick={() => (doneCount > 0 ? setConfirmDiscard(true) : close())}
           aria-label="Descartar entreno"
           className="flex size-10 items-center justify-center rounded-full bg-surface hover:bg-muted"
         >
@@ -306,6 +309,18 @@ export function WorkoutSessionModal() {
           if (swapForExId) replaceExercise(swapForExId, newEx.id);
           setSwapForExId(null);
         }}
+      />
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        title="¿Descartar entreno?"
+        description={`Perderas las ${doneCount} series completadas de esta sesion.`}
+        confirmLabel="Descartar"
+        onConfirm={() => {
+          setConfirmDiscard(false);
+          close();
+        }}
+        onCancel={() => setConfirmDiscard(false)}
       />
     </div>
   );

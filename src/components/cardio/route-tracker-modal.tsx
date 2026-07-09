@@ -1,7 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Minimize2, Play, Pause, Square, MapPin, Activity, Clock } from "lucide-react";
+import {
+  Minimize2,
+  Play,
+  Pause,
+  Square,
+  MapPin,
+  Activity,
+  Clock,
+  TriangleAlert,
+} from "lucide-react";
 import { useCardio } from "@/lib/store/cardio-store";
 
 const MapView = dynamic(() => import("./map-view"), {
@@ -27,6 +36,7 @@ export function RouteTrackerModal() {
     coordinates,
     distanceKm,
     durationSec,
+    gpsError,
     pauseTracking,
     resumeTracking,
     stopTracking,
@@ -53,11 +63,19 @@ export function RouteTrackerModal() {
           </span>
           <button
             onClick={minimize}
+            aria-label="Minimizar ruta"
             className="flex size-10 items-center justify-center rounded-full bg-surface hover:bg-muted"
           >
             <Minimize2 className="size-5" />
           </button>
         </div>
+
+        {gpsError && (
+          <div className="absolute inset-x-5 top-[calc(env(safe-area-inset-top)+4.5rem)] z-[400] flex items-start gap-2 rounded-2xl bg-red-600 px-4 py-3 text-white shadow-lg backdrop-blur-md">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+            <p className="text-xs leading-snug">{gpsError}</p>
+          </div>
+        )}
       </div>
 
       {/* Bottom panel */}
@@ -89,12 +107,14 @@ export function RouteTrackerModal() {
             <>
               <button
                 onClick={stopTracking}
+                aria-label="Terminar ruta"
                 className="flex size-16 items-center justify-center rounded-full bg-neutral-200 text-neutral-900 transition-transform active:scale-95 dark:bg-neutral-800 dark:text-white"
               >
                 <Square className="size-6 fill-current" />
               </button>
               <button
                 onClick={resumeTracking}
+                aria-label="Reanudar ruta"
                 className="flex size-20 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl shadow-blue-600/20 transition-transform active:scale-95"
               >
                 <Play className="size-8 fill-current ml-1" />
@@ -103,6 +123,7 @@ export function RouteTrackerModal() {
           ) : (
             <button
               onClick={pauseTracking}
+              aria-label="Pausar ruta"
               className="flex size-20 items-center justify-center rounded-full bg-amber-500 text-white shadow-xl shadow-amber-500/20 transition-transform active:scale-95"
             >
               <Pause className="size-8 fill-current" />

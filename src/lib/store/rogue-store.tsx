@@ -23,6 +23,7 @@ import {
 import { DEMO_ROUTINE } from "@/data/routine.demo";
 import type {
   LoggedSet,
+  Preferences,
   Profile,
   RoutineDay,
   WorkoutSession,
@@ -37,6 +38,13 @@ const DEFAULT_PROFILE: Profile = {
   bodyweightKg: 75,
   heightCm: 175,
   goal: "Hipertrofia",
+};
+
+const DEFAULT_PREFERENCES: Preferences = {
+  unit: "kg",
+  notifyReminders: true,
+  notifyRestEnd: true,
+  notifyWeeklySummary: false,
 };
 
 type ExerciseInfo = { nombre: string; grupo: MuscleGroup };
@@ -72,7 +80,12 @@ export type LogResult = {
   rankChanges: RankChange[];
 };
 
-type RogueState = { profile: Profile; sessions: WorkoutSession[]; routineDays: RoutineDay[] };
+type RogueState = {
+  profile: Profile;
+  sessions: WorkoutSession[];
+  routineDays: RoutineDay[];
+  preferences: Preferences;
+};
 
 type RogueContextValue = {
   hydrated: boolean;
@@ -82,7 +95,10 @@ type RogueContextValue = {
   muscleRanks: ComputedMuscleRank[];
   routineDays: RoutineDay[];
   todayDay: RoutineDay;
+  preferences: Preferences;
   completeOnboarding: (data: Partial<Profile>) => void;
+  updateProfile: (patch: Partial<Profile>) => void;
+  updatePreferences: (patch: Partial<Preferences>) => void;
   logSession: (dayLabel: string, sets: LoggedSet[]) => LogResult;
   saveRoutine: (days: RoutineDay[]) => void;
   resetAll: () => void;
@@ -138,6 +154,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
     profile: DEFAULT_PROFILE,
     sessions: [],
     routineDays: DEMO_ROUTINE.days,
+    preferences: DEFAULT_PREFERENCES,
   });
   const [hydrated, setHydrated] = useState(false);
 
@@ -150,6 +167,8 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
           profile: { ...DEFAULT_PROFILE, ...parsed.profile },
           sessions: parsed.sessions ?? [],
           routineDays: parsed.routineDays ?? DEMO_ROUTINE.days,
+          // Estados guardados antes de existir preferencias: usar defaults.
+          preferences: { ...DEFAULT_PREFERENCES, ...parsed.preferences },
         });
       }
     } catch {
@@ -174,9 +193,28 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
         ...data,
         onboarded: true,
       };
-      persist({ profile, sessions: seedHistory(), routineDays: state.routineDays });
+      persist({
+        profile,
+        sessions: seedHistory(),
+        routineDays: state.routineDays,
+        preferences: state.preferences,
+      });
     },
-    [persist, state.routineDays],
+    [persist, state.routineDays, state.preferences],
+  );
+
+  const updateProfile = useCallback(
+    (patch: Partial<Profile>) => {
+      persist({ ...state, profile: { ...state.profile, ...patch } });
+    },
+    [persist, state],
+  );
+
+  const updatePreferences = useCallback(
+    (patch: Partial<Preferences>) => {
+      persist({ ...state, preferences: { ...state.preferences, ...patch } });
+    },
+    [persist, state],
   );
 
   const logSession = useCallback(
@@ -228,7 +266,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
         if (up) rankChanges.push({ muscle: a.muscle, before: b, after: a, up, newlyRanked });
       }
 
-      persist({ profile: state.profile, sessions: nextSessions, routineDays: state.routineDays });
+      persist({ ...state, sessions: nextSessions });
       return { session, prs, rankChanges };
     },
     [persist, state],
@@ -242,7 +280,12 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
   );
 
   const resetAll = useCallback(() => {
-    persist({ profile: DEFAULT_PROFILE, sessions: [], routineDays: DEMO_ROUTINE.days });
+    persist({
+      profile: DEFAULT_PROFILE,
+      sessions: [],
+      routineDays: DEMO_ROUTINE.days,
+      preferences: DEFAULT_PREFERENCES,
+    });
   }, [persist]);
 
   const muscleRanks = useMemo(
@@ -274,7 +317,10 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
     muscleRanks,
     routineDays: state.routineDays,
     todayDay,
+    preferences: state.preferences,
     completeOnboarding,
+    updateProfile,
+    updatePreferences,
     logSession,
     saveRoutine,
     resetAll,

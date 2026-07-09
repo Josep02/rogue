@@ -39,6 +39,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useRogue, getExerciseInfo } from "@/lib/store/rogue-store";
 import { DEMO_EXERCISES, EXERCISE_IMG_BASE } from "@/lib/exercises/repo";
 import { ExerciseSelectorModal } from "@/components/routines/exercise-selector-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { RoutineDay, RoutineExercise } from "@/lib/workout/types";
 import type { Exercise } from "@/lib/exercises/types";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,8 @@ export default function ConstructorPage() {
   );
   const [expandedDay, setExpandedDay] = useState<string>(days[0]?.id ?? "");
   const [selectorForDay, setSelectorForDay] = useState<string | null>(null);
+  // Dia pendiente de confirmacion antes de borrarlo.
+  const [confirmRemoveDay, setConfirmRemoveDay] = useState<RoutineDay | null>(null);
 
   // --- Reordenar días (arrastrar y soltar la tarjeta completa) ---
   const sensors = useSensors(
@@ -189,7 +192,7 @@ export default function ConstructorPage() {
                 }
                 onRemoveExercise={(exId) => removeExercise(day.id, exId)}
                 onAddExercise={() => setSelectorForDay(day.id)}
-                onRemoveDay={() => removeDay(day.id)}
+                onRemoveDay={() => setConfirmRemoveDay(day)}
               />
             ))}
           </div>
@@ -217,6 +220,22 @@ export default function ConstructorPage() {
           if (selectorForDay) addExercise(selectorForDay, ex);
           setSelectorForDay(null);
         }}
+      />
+
+      <ConfirmDialog
+        open={confirmRemoveDay !== null}
+        title={`¿Eliminar "${confirmRemoveDay?.label}"?`}
+        description={
+          confirmRemoveDay && confirmRemoveDay.exercises.length > 0
+            ? `Se perderan sus ${confirmRemoveDay.exercises.length} ejercicios configurados.`
+            : undefined
+        }
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          if (confirmRemoveDay) removeDay(confirmRemoveDay.id);
+          setConfirmRemoveDay(null);
+        }}
+        onCancel={() => setConfirmRemoveDay(null)}
       />
     </div>
   );
@@ -356,6 +375,7 @@ function SortableDay({
             {canRemove && (
               <button
                 onClick={onRemoveDay}
+                aria-label="Eliminar dia"
                 className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="size-4" />
@@ -401,6 +421,7 @@ function ExerciseRow({
         </button>
         <button
           onClick={onRemove}
+          aria-label={`Quitar ${nombre}`}
           className="flex size-10 items-center justify-center rounded-full text-muted-foreground hover:text-destructive"
         >
           <X className="size-3.5" />

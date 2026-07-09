@@ -1,16 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import {
   ArrowLeft,
+  Check,
   ChevronRight,
-  Dumbbell,
   Flame,
-  LogOut,
+  Minus,
+  Plus,
   RotateCcw,
   Shield,
   Weight,
+  X,
 } from "lucide-react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
+import { useEffect } from "react";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -18,6 +23,11 @@ import {
   UnitToggle,
 } from "@/components/profile/preference-controls";
 import { useRogue } from "@/lib/store/rogue-store";
+import { formatWeight } from "@/lib/units";
+import type { Sex } from "@/lib/workout/types";
+import { cn } from "@/lib/utils";
+
+const GOALS = ["Hipertrofia", "Fuerza", "Perder grasa", "Mantenerme"];
 
 function Section({
   title,
@@ -36,13 +46,20 @@ function Section({
   );
 }
 
-function RowCard({ rows }: { rows: { label: string; value: string }[] }) {
+function RowCard({
+  rows,
+  onRowClick,
+}: {
+  rows: { label: string; value: string }[];
+  onRowClick?: () => void;
+}) {
   return (
     <PastelCard variant="neutral" className="flex flex-col divide-y divide-border p-0">
       {rows.map((row) => (
         <button
           key={row.label}
           type="button"
+          onClick={onRowClick}
           className="flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
         >
           <span className="text-sm">{row.label}</span>
@@ -58,8 +75,186 @@ function RowCard({ rows }: { rows: { label: string; value: string }[] }) {
   );
 }
 
+function FieldStepper({
+  label,
+  value,
+  unit,
+  step,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+  step: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  const clamp = (n: number) => Math.min(max, Math.max(min, n));
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-border bg-background px-4 py-3">
+      <span className="text-sm">{label}</span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-label={`Restar ${label.toLowerCase()}`}
+          onClick={() => onChange(clamp(value - step))}
+          className="flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Minus className="size-4" />
+        </button>
+        <span className="flex w-[4.5rem] items-baseline justify-center gap-1">
+          <span className="text-lg">{value}</span>
+          <span className="text-sm text-muted-foreground">{unit}</span>
+        </span>
+        <button
+          type="button"
+          aria-label={`Sumar ${label.toLowerCase()}`}
+          onClick={() => onChange(clamp(value + step))}
+          className="flex size-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Plus className="size-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Hoja de edicion de datos fisicos (peso, altura, sexo, objetivo). */
+function EditPhysicalModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { profile, updateProfile } = useRogue();
+  const [bodyweightKg, setBodyweightKg] = useState(profile.bodyweightKg);
+  const [heightCm, setHeightCm] = useState(profile.heightCm);
+  const [sex, setSex] = useState<Sex>(profile.sex);
+  const [goal, setGoal] = useState(profile.goal);
+
+  // Re-sincroniza el borrador al abrir con los valores actuales.
+  useEffect(() => {
+    if (open) {
+      setBodyweightKg(profile.bodyweightKg);
+      setHeightCm(profile.heightCm);
+      setSex(profile.sex);
+      setGoal(profile.goal);
+    }
+  }, [open, profile]);
+
+  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
+  useEffect(() => {
+    setPortalTarget(document.getElementById("app-shell"));
+  }, []);
+
+  if (!open) return null;
+
+  const content = (
+    <div
+      className="absolute inset-0 z-[60] flex flex-col justify-end"
+      style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="flex flex-col gap-4 rounded-t-3xl border border-border bg-surface p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-base font-semibold">Datos fisicos</p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="flex size-10 items-center justify-center rounded-full hover:bg-muted"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <FieldStepper
+          label="Peso corporal"
+          value={bodyweightKg}
+          unit="kg"
+          step={1}
+          min={30}
+          max={300}
+          onChange={setBodyweightKg}
+        />
+        <FieldStepper
+          label="Altura"
+          value={heightCm}
+          unit="cm"
+          step={1}
+          min={100}
+          max={250}
+          onChange={setHeightCm}
+        />
+
+        <div className="flex gap-2">
+          {(["hombre", "mujer"] as Sex[]).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSex(s)}
+              className={cn(
+                "flex-1 rounded-2xl border py-3 text-sm font-medium capitalize transition-colors",
+                sex === s
+                  ? "border-foreground bg-accent text-accent-foreground"
+                  : "border-border bg-background text-muted-foreground",
+              )}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {GOALS.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setGoal(g)}
+              className={cn(
+                "rounded-2xl border py-3 text-sm font-medium transition-colors",
+                goal === g
+                  ? "border-foreground bg-accent text-accent-foreground"
+                  : "border-border bg-background text-muted-foreground",
+              )}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+
+        <p className="text-[11px] text-muted-foreground">
+          Cambiar el peso o el sexo recalcula tus rangos al momento.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            updateProfile({ bodyweightKg, heightCm, sex, goal });
+            onClose();
+          }}
+          className="flex items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-sm font-medium text-accent-foreground transition-transform active:scale-[0.99]"
+        >
+          <Check className="size-4" />
+          Guardar cambios
+        </button>
+      </div>
+    </div>
+  );
+
+  return portalTarget ? createPortal(content, portalTarget) : content;
+}
+
 export default function PerfilPage() {
-  const { profile, sessions, ranks, resetAll } = useRogue();
+  const { profile, sessions, ranks, preferences, resetAll } = useRogue();
+  const [editOpen, setEditOpen] = useState(false);
 
   const initials =
     profile.name
@@ -119,8 +314,8 @@ export default function PerfilPage() {
         <PastelCard variant="neutral" className="flex flex-col gap-1.5">
           <Weight className="size-4 text-muted-foreground" />
           <p className="font-mono text-lg font-medium leading-none">
-            {profile.bodyweightKg}
-            <span className="text-xs font-normal">kg</span>
+            {formatWeight(profile.bodyweightKg, preferences.unit)}
+            <span className="text-xs font-normal">{preferences.unit}</span>
           </p>
           <p className="text-[11px] text-muted-foreground">peso</p>
         </PastelCard>
@@ -128,8 +323,12 @@ export default function PerfilPage() {
 
       <Section title="DATOS FISICOS">
         <RowCard
+          onRowClick={() => setEditOpen(true)}
           rows={[
-            { label: "Peso corporal", value: `${profile.bodyweightKg} kg` },
+            {
+              label: "Peso corporal",
+              value: `${formatWeight(profile.bodyweightKg, preferences.unit)} ${preferences.unit}`,
+            },
             { label: "Altura", value: `${profile.heightCm} cm` },
             { label: "Sexo", value: profile.sex },
             { label: "Objetivo", value: profile.goal },
@@ -153,16 +352,17 @@ export default function PerfilPage() {
           <SwitchRow
             label="Recordatorios de entreno"
             description="Avisos de tu sesion del dia"
-            defaultOn
+            prefKey="notifyReminders"
           />
           <SwitchRow
             label="Temporizador de descanso"
-            description="Sonido al acabar el descanso"
-            defaultOn
+            description="Vibracion y aviso al acabar el descanso"
+            prefKey="notifyRestEnd"
           />
           <SwitchRow
             label="Resumen semanal"
             description="Progreso y rangos cada domingo"
+            prefKey="notifyWeeklySummary"
           />
         </PastelCard>
       </Section>
@@ -176,15 +376,10 @@ export default function PerfilPage() {
           <RotateCcw className="size-4" />
           Reiniciar datos de demo
         </button>
-        <button
-          type="button"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <LogOut className="size-4" />
-          Cerrar sesion
-        </button>
       </div>
       </div>
+
+      <EditPhysicalModal open={editOpen} onClose={() => setEditOpen(false)} />
     </div>
   );
 }

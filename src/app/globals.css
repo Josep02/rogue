@@ -29,6 +29,9 @@
   --rank-oro: #c7a34d;
   --rank-esmeralda: #4e9d5e;
   --rank-maestro: #b5594f;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
 }
 
 .dark {
@@ -58,6 +61,9 @@
   --rank-oro: #dbb968;
   --rank-esmeralda: #74c07e;
   --rank-maestro: #c87669;
+
+  --destructive: #f87171;
+  --destructive-foreground: #17181c;
 }
 
 @theme inline {
@@ -74,6 +80,9 @@
 
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
 
   --color-card-lilac: var(--card-lilac);
   --color-card-lilac-foreground: var(--card-lilac-foreground);

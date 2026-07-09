@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
+import { HydrationGate } from "@/components/hydration-gate";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { RogueProvider } from "@/lib/store/rogue-store";
@@ -63,7 +64,9 @@ export default function RootLayout({
           <RogueProvider>
             <WorkoutSessionProvider>
               <CardioProvider>
-                <AppShell>{children}</AppShell>
+                <HydrationGate>
+                  <AppShell>{children}</AppShell>
+                </HydrationGate>
                 <OnboardingGate />
               </CardioProvider>
             </WorkoutSessionProvider>

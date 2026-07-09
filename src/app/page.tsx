@@ -100,14 +100,14 @@ function TodayCard({
   return (
     <div className="h-full min-h-[212px] rounded-3xl p-5 bg-surface text-foreground border border-border">
       <div className="flex items-start justify-between">
-        <span className="rounded-full bg-neutral-100 px-3 py-1.5 font-mono text-[10px] font-medium tracking-[0.15em] text-neutral-600">
+        <span className="rounded-full bg-muted px-3 py-1.5 font-mono text-[10px] font-medium tracking-[0.15em] text-muted-foreground">
           HOY · {todayDay.label.toUpperCase()}
         </span>
       </div>
       <h2 className="mt-4 text-2xl font-semibold leading-tight tracking-tight">
         {todayDay.focus}
       </h2>
-      <p className="mt-1.5 font-mono text-sm text-neutral-500">
+      <p className="mt-1.5 font-mono text-sm text-muted-foreground">
         {todayDay.exercises.length} ejercicios · {estMinutes} min
       </p>
       <div className="mt-5 flex items-center justify-end">
@@ -212,13 +212,13 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-start justify-between"
       >
-        <span className="flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1.5 font-mono text-[10px] font-medium tracking-[0.15em] text-neutral-600">
+        <span className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 font-mono text-[10px] font-medium tracking-[0.15em] text-muted-foreground">
           <Calendar className="size-3" />
           {expanded ? "MES COMPLETO" : "ULTIMOS 7 DIAS"}
         </span>
         <ChevronDown
           className={cn(
-            "size-4 text-neutral-400 transition-transform",
+            "size-4 text-muted-foreground transition-transform",
             expanded && "rotate-180",
           )}
         />
@@ -232,16 +232,17 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
           <div className="mt-5 flex items-center justify-between">
             {days.map((d) => (
               <div key={d.key} className="flex flex-col items-center gap-1.5">
-                <span className="font-mono text-[10px] text-neutral-400">
+                <span className="font-mono text-[10px] text-muted-foreground">
                   {d.letter}
                 </span>
                 <span
                   className={cn(
                     "flex size-9 items-center justify-center rounded-full font-mono text-xs font-medium transition-colors",
                     d.trained
-                      ? "bg-neutral-900 text-white"
-                      : "bg-neutral-100 text-neutral-400",
-                    d.isToday && !d.trained && "ring-2 ring-neutral-900 ring-offset-2",
+                      ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                      : "bg-muted text-muted-foreground",
+                    d.isToday && !d.trained &&
+                      "ring-2 ring-neutral-900 ring-offset-2 ring-offset-surface dark:ring-white",
                   )}
                 >
                   {d.num}
@@ -264,7 +265,7 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
                   shiftMonth(-1);
                 }}
                 aria-label="Mes anterior"
-                className="flex size-8 items-center justify-center rounded-full hover:bg-neutral-100"
+                className="flex size-8 items-center justify-center rounded-full hover:bg-muted"
               >
                 <ChevronLeft className="size-4" />
               </button>
@@ -275,18 +276,18 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
                   shiftMonth(1);
                 }}
                 aria-label="Mes siguiente"
-                className="flex size-8 items-center justify-center rounded-full hover:bg-neutral-100"
+                className="flex size-8 items-center justify-center rounded-full hover:bg-muted"
               >
                 <ChevronRight className="size-4" />
               </button>
             </div>
           </div>
-          <p className="mt-1 font-mono text-xs text-neutral-500">
+          <p className="mt-1 font-mono text-xs text-muted-foreground">
             {monthTrainedCount} dias entrenados
           </p>
           <div className="mt-4 grid grid-cols-7 gap-y-2 text-center">
             {WEEKDAY_LETTERS.map((l, i) => (
-              <span key={i} className="font-mono text-[10px] text-neutral-400">
+              <span key={i} className="font-mono text-[10px] text-muted-foreground">
                 {l}
               </span>
             ))}
@@ -305,14 +306,15 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
                     className={cn(
                       "flex size-7 items-center justify-center rounded-full font-mono text-[11px] font-medium transition-colors",
                       d.trained
-                        ? "bg-neutral-900 text-white"
+                        ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
                         : d.isFuture
-                          ? "text-neutral-200"
-                          : "text-neutral-400",
-                      d.isToday && !d.trained && "ring-2 ring-neutral-900 ring-offset-1",
+                          ? "text-neutral-200 dark:text-neutral-700"
+                          : "text-muted-foreground",
+                      d.isToday && !d.trained &&
+                        "ring-2 ring-neutral-900 ring-offset-1 ring-offset-surface dark:ring-white",
                       d.trained &&
-                      selectedKey === d.key &&
-                      "ring-2 ring-neutral-900 ring-offset-1",
+                        selectedKey === d.key &&
+                        "ring-2 ring-neutral-900 ring-offset-1 ring-offset-surface dark:ring-white",
                     )}
                   >
                     {d.num}
@@ -323,7 +325,7 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
           </div>
 
           {selectedKey && selectedSessions && (
-            <div className="mt-4 rounded-2xl bg-neutral-100 p-3">
+            <div className="mt-4 rounded-2xl bg-muted p-3">
               <p className="text-xs font-semibold capitalize">
                 {formatDayDetail(selectedKey)}
               </p>
@@ -338,7 +340,7 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
                     <div key={s.id} className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-medium">{s.dayLabel}</p>
-                        <p className="font-mono text-[10px] text-neutral-500">
+                        <p className="font-mono text-[10px] text-muted-foreground">
                           {groups.join(" · ")}
                         </p>
                       </div>
@@ -346,7 +348,7 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
                         <p className="font-mono text-xs font-medium">
                           {s.sets.length} series
                         </p>
-                        <p className="font-mono text-[10px] text-neutral-500">
+                        <p className="font-mono text-[10px] text-muted-foreground">
                           {volume.toLocaleString("es-ES")} kg
                         </p>
                       </div>

@@ -11,6 +11,19 @@ export type Profile = {
   goal: string;
 };
 
+export type WeightUnit = "kg" | "lb";
+
+/** Ajustes del usuario (persisten junto al resto del estado). */
+export type Preferences = {
+  unit: WeightUnit;
+  /** Recordatorio diario de la sesion que toca. */
+  notifyReminders: boolean;
+  /** Aviso (vibracion/notificacion) al terminar el descanso entre series. */
+  notifyRestEnd: boolean;
+  /** Resumen semanal de progreso. */
+  notifyWeeklySummary: boolean;
+};
+
 /** Un ejercicio dentro de un dia de rutina. */
 export type RoutineExercise = {
   exerciseId: string;

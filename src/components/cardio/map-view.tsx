@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from "react-l
 import { useTheme } from "next-themes";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import type { Coordinate } from "@/hooks/use-route-tracker";
+import type { Coordinate } from "@/lib/store/cardio-store";
 
 // Fix para los iconos por defecto de Leaflet en Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl;

@@ -43,6 +43,7 @@ export type CardioContextValue = {
   distanceKm: number;
   durationSec: number;
   history: CardioSession[];
+  gpsError: string | null;
   startTracking: () => void;
   pauseTracking: () => void;
   resumeTracking: () => void;
@@ -50,6 +51,19 @@ export type CardioContextValue = {
   minimize: () => void;
   maximize: () => void;
 };
+
+function gpsErrorMessage(err: GeolocationPositionError): string {
+  switch (err.code) {
+    case err.PERMISSION_DENIED:
+      return "Sin acceso a tu ubicacion. Activa el permiso de GPS para esta app en los ajustes del navegador.";
+    case err.POSITION_UNAVAILABLE:
+      return "No se puede obtener tu ubicacion ahora mismo. Comprueba tu senal GPS.";
+    case err.TIMEOUT:
+      return "Tardamos demasiado en localizarte. Sal a espacio abierto e intentalo de nuevo.";
+    default:
+      return "No se pudo acceder al GPS.";
+  }
+}
 
 // --- Context ---
 
@@ -88,6 +102,8 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     },
   ]);
 
+  const [gpsError, setGpsError] = useState<string | null>(null);
+
   const watchIdRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -104,9 +120,13 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
   }, [isTracking, isPaused]);
 
   const watchGPS = useCallback(() => {
-    if (!("geolocation" in navigator)) return;
+    if (!("geolocation" in navigator)) {
+      setGpsError("Este dispositivo no soporta geolocalizacion.");
+      return;
+    }
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
+        setGpsError(null);
         const newCoord: Coordinate = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
@@ -120,7 +140,10 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
           return [...prev, newCoord];
         });
       },
-      (err) => console.warn(`GPS (${err.code}): ${err.message}`),
+      (err) => {
+        console.warn(`GPS (${err.code}): ${err.message}`);
+        setGpsError(gpsErrorMessage(err));
+      },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 },
     );
   }, []);
@@ -139,6 +162,7 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     setCoordinates([]);
     setDistanceKm(0);
     setDurationSec(0);
+    setGpsError(null);
     watchGPS();
   }, [watchGPS]);
 
@@ -156,6 +180,7 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     setIsTracking(false);
     setIsPaused(false);
     setIsMinimized(false);
+    setGpsError(null);
     clearGPS();
     if (timerRef.current) clearInterval(timerRef.current);
 
@@ -193,6 +218,7 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
         distanceKm,
         durationSec,
         history,
+        gpsError,
         startTracking,
         pauseTracking,
         resumeTracking,

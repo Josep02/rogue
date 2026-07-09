@@ -65,7 +65,7 @@ export function WorkoutSessionProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { logSession } = useRogue();
+  const { logSession, preferences } = useRogue();
 
   const [active, setActive] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -78,6 +78,29 @@ export function WorkoutSessionProvider({
   const [restTotal, setRestTotal] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
+  // Avisa de que el descanso termino incluso si la pestana esta en 2.o plano
+  // o el movil bloqueado: vibracion siempre, notificacion solo si no se ve.
+  // Desactivable desde Perfil > Notificaciones.
+  const notifyRestEnd = useCallback(() => {
+    if (!preferences.notifyRestEnd) return;
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate([200, 100, 200]);
+    }
+    if (
+      typeof document !== "undefined" &&
+      document.hidden &&
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      Notification.permission === "granted"
+    ) {
+      new Notification("Descanso terminado", {
+        body: "Toca para seguir con la siguiente serie.",
+        icon: "/icon-192.png",
+        tag: "rogue-rest-end",
+      });
+    }
+  }, []);
+
   // Cronometro del descanso (anclado a timestamp, se autocorrige en 2.º plano).
   useEffect(() => {
     if (restUntil === null) return;
@@ -88,10 +111,20 @@ export function WorkoutSessionProvider({
   const restRemaining =
     restUntil !== null ? Math.max(0, Math.ceil((restUntil - now) / 1000)) : 0;
   useEffect(() => {
-    if (restUntil !== null && now >= restUntil) setRestUntil(null);
-  }, [now, restUntil]);
+    if (restUntil !== null && now >= restUntil) {
+      setRestUntil(null);
+      notifyRestEnd();
+    }
+  }, [now, restUntil, notifyRestEnd]);
 
   const start = useCallback((d: RoutineDay) => {
+    // Pedimos permiso de notificacion aqui (gesto de usuario) para poder
+    // avisar de fin de descanso aunque la pestana este en 2.o plano.
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
+      }
+    }
     setDay(d);
     setRows(buildRows(d));
     setPhase("active");

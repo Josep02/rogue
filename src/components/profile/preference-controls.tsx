@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRogue } from "@/lib/store/rogue-store";
+import type { Preferences, WeightUnit } from "@/lib/workout/types";
 import { cn } from "@/lib/utils";
 
-/** Segmentado de unidades (kg / lb). Demo local hasta tener backend. */
+/** Segmentado de unidades (kg / lb), persistido en preferencias. */
 export function UnitToggle() {
-  const [unit, setUnit] = useState<"kg" | "lb">("kg");
-  const options = [
+  const { preferences, updatePreferences } = useRogue();
+  const options: { value: WeightUnit; label: string }[] = [
     { value: "kg", label: "Kilogramos" },
     { value: "lb", label: "Libras" },
-  ] as const;
+  ];
 
   return (
     <div className="flex items-center gap-1 rounded-2xl border border-border bg-muted/60 p-1">
@@ -17,10 +18,10 @@ export function UnitToggle() {
         <button
           key={option.value}
           type="button"
-          onClick={() => setUnit(option.value)}
+          onClick={() => updatePreferences({ unit: option.value })}
           className={cn(
             "flex-1 rounded-xl px-3 py-2 text-sm transition-colors",
-            unit === option.value
+            preferences.unit === option.value
               ? "bg-surface text-foreground shadow-sm dark:bg-neutral-700"
               : "text-muted-foreground hover:text-foreground",
           )}
@@ -32,17 +33,22 @@ export function UnitToggle() {
   );
 }
 
-/** Fila con interruptor on/off. Demo local hasta tener backend. */
+type BooleanPrefKey = {
+  [K in keyof Preferences]: Preferences[K] extends boolean ? K : never;
+}[keyof Preferences];
+
+/** Fila con interruptor on/off ligada a una preferencia persistida. */
 export function SwitchRow({
   label,
   description,
-  defaultOn = false,
+  prefKey,
 }: {
   label: string;
   description?: string;
-  defaultOn?: boolean;
+  prefKey: BooleanPrefKey;
 }) {
-  const [on, setOn] = useState(defaultOn);
+  const { preferences, updatePreferences } = useRogue();
+  const on = preferences[prefKey];
 
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -57,7 +63,7 @@ export function SwitchRow({
         role="switch"
         aria-checked={on}
         aria-label={label}
-        onClick={() => setOn((v) => !v)}
+        onClick={() => updatePreferences({ [prefKey]: !on })}
         className="flex h-6 w-11 shrink-0 items-center rounded-full border border-border bg-muted px-[3px] transition-colors"
       >
         <span
