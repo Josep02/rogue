@@ -21,7 +21,8 @@ import { useRogue } from "@/lib/store/rogue-store";
 import { useWorkoutSession } from "@/lib/store/workout-session-store";
 import type { ComputedRank } from "@/lib/rank-engine";
 import { getDisplayName, type RoutineDay, type WorkoutSession } from "@/lib/workout/types";
-import { exerciseSuggestions } from "@/lib/mock-data";
+import { DEMO_EXERCISES } from "@/lib/exercises/repo";
+import { DIFFICULTY_LABELS, EQUIPMENT_LABELS } from "@/lib/exercises/types";
 import { formatWeight } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
@@ -444,6 +445,32 @@ export default function Home() {
     0,
   );
   const estMinutes = todayDay ? todayDay.exercises.length * 9 : 0;
+
+  // Sugerencias reales: ejercicios compuestos de los grupos que menos has
+  // entrenado (sin rango o con menos sesiones), sacados de la biblioteca.
+  const suggestions = useMemo(() => {
+    const trainedIds = new Set(
+      sessions.flatMap((s) => s.sets.map((set) => set.exerciseId)),
+    );
+    const groupsByNeed = [...ranks].sort((a, b) => a.sessions - b.sessions);
+    const variants = ["lilac", "blue"] as const;
+    const picks: { ex: (typeof DEMO_EXERCISES)[number]; variant: (typeof variants)[number] }[] = [];
+    for (const rank of groupsByNeed) {
+      if (picks.length >= 2) break;
+      const candidate =
+        DEMO_EXERCISES.find(
+          (e) =>
+            e.grupo === rank.muscle &&
+            e.mecanica === "compuesto" &&
+            !trainedIds.has(e.id),
+        ) ?? DEMO_EXERCISES.find((e) => e.grupo === rank.muscle);
+      if (candidate && !picks.some((p) => p.ex.id === candidate.id)) {
+        picks.push({ ex: candidate, variant: variants[picks.length] });
+      }
+    }
+    return picks;
+  }, [ranks, sessions]);
+
   const displayName = getDisplayName(profile, preferences);
   const initials =
     displayName
@@ -567,24 +594,25 @@ export default function Home() {
           DESCUBRE EJERCICIOS
         </p>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          {exerciseSuggestions.map((exercise) => (
+          {suggestions.map(({ ex, variant }) => (
             <PastelCard
-              key={exercise.title}
-              variant={exercise.variant}
+              key={ex.id}
+              variant={variant}
               className="flex flex-col gap-2"
             >
               <p className="text-[10px] font-medium tracking-wide opacity-70">
-                {exercise.muscle}
+                {ex.grupo.toUpperCase()}
               </p>
-              <p className="text-sm font-semibold leading-snug">
-                {exercise.title}
-              </p>
+              <p className="text-sm font-semibold leading-snug">{ex.nombre}</p>
               <p className="font-mono text-xs opacity-80">
-                {exercise.primaryMeta}
+                {EQUIPMENT_LABELS[ex.equipo]}
               </p>
-              <p className="text-[11px] opacity-70">{exercise.secondaryMeta}</p>
+              <p className="text-[11px] opacity-70">
+                {DIFFICULTY_LABELS[ex.dificultad]} ·{" "}
+                {ex.mecanica === "compuesto" ? "Compuesto" : "Aislamiento"}
+              </p>
               <Link
-                href={exercise.href}
+                href={`/biblioteca/${ex.id}`}
                 className="mt-1 flex w-fit items-center gap-1 rounded-full bg-black/10 px-3 py-2 text-xs font-medium dark:bg-white/15"
               >
                 Ver

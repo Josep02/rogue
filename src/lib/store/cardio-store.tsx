@@ -102,6 +102,44 @@ async function insertCardioSession(
   });
 }
 
+// --- Sesion en curso: snapshot para sobrevivir a que el SO mate la PWA ---
+
+const ACTIVE_SNAPSHOT_KEY = "rogue.cardio.active.v1";
+
+type ActiveSnapshot = {
+  coordinates: Coordinate[];
+  distanceKm: number;
+  /** Segundos acumulados hasta la ultima pausa/reanudacion. */
+  accumulatedSec: number;
+  /** Timestamp (ms) de la ultima reanudacion; null si esta en pausa. */
+  runningSince: number | null;
+};
+
+function readSnapshot(): ActiveSnapshot | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SNAPSHOT_KEY);
+    return raw ? (JSON.parse(raw) as ActiveSnapshot) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSnapshot(snap: ActiveSnapshot) {
+  try {
+    localStorage.setItem(ACTIVE_SNAPSHOT_KEY, JSON.stringify(snap));
+  } catch {
+    /* sin almacenamiento: la recuperacion no estara disponible */
+  }
+}
+
+function clearSnapshot() {
+  try {
+    localStorage.removeItem(ACTIVE_SNAPSHOT_KEY);
+  } catch {
+    /* nada */
+  }
+}
+
 function gpsErrorMessage(err: GeolocationPositionError): string {
   switch (err.code) {
     case err.PERMISSION_DENIED:
@@ -181,19 +219,57 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
   }, [pathname, supabase]);
 
   const watchIdRef = useRef<number | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Cronómetro
+  // Cronometro por timestamps: aunque el navegador congele los timers en
+  // segundo plano, al volver el tiempo mostrado se recalcula y es correcto.
+  const accumulatedSecRef = useRef(0);
+  const runningSinceRef = useRef<number | null>(null);
+
+  const computeDuration = useCallback(() => {
+    const running =
+      runningSinceRef.current !== null
+        ? (Date.now() - runningSinceRef.current) / 1000
+        : 0;
+    return Math.floor(accumulatedSecRef.current + running);
+  }, []);
+
   useEffect(() => {
-    if (isTracking && !isPaused) {
-      timerRef.current = setInterval(() => setDurationSec((s) => s + 1), 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
+    if (!isTracking || isPaused) return;
+    const id = setInterval(() => setDurationSec(computeDuration()), 1000);
+    return () => clearInterval(id);
+  }, [isTracking, isPaused, computeDuration]);
+
+  // Wake Lock: mantiene la pantalla encendida mientras se graba. Con la
+  // pantalla apagada el navegador suspende el GPS; esto es lo que permite
+  // que una PWA siga registrando la ruta (no hay geolocalizacion en
+  // segundo plano real en la web).
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  const acquireWakeLock = useCallback(async () => {
+    try {
+      if ("wakeLock" in navigator) {
+        wakeLockRef.current = await navigator.wakeLock.request("screen");
+      }
+    } catch {
+      /* denegado o no soportado: la app funciona igual */
     }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
+
+  const releaseWakeLock = useCallback(() => {
+    wakeLockRef.current?.release().catch(() => {});
+    wakeLockRef.current = null;
+  }, []);
+
+  // El wake lock se libera solo al ocultar la pestana; se re-adquiere al
+  // volver si la grabacion sigue activa.
+  useEffect(() => {
+    if (!isTracking || isPaused) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") acquireWakeLock();
     };
-  }, [isTracking, isPaused]);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [isTracking, isPaused, acquireWakeLock]);
 
   const watchGPS = useCallback(() => {
     if (!("geolocation" in navigator)) {
@@ -231,6 +307,18 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Snapshot de la sesion en curso: si el SO mata la PWA a mitad de ruta,
+  // al reabrir se recupera lo grabado en vez de perderlo todo.
+  useEffect(() => {
+    if (!isTracking) return;
+    writeSnapshot({
+      coordinates,
+      distanceKm,
+      accumulatedSec: accumulatedSecRef.current,
+      runningSince: runningSinceRef.current,
+    });
+  }, [isTracking, coordinates, distanceKm, isPaused]);
+
   const startTracking = useCallback(() => {
     setIsTracking(true);
     setIsPaused(false);
@@ -239,51 +327,98 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     setDistanceKm(0);
     setDurationSec(0);
     setGpsError(null);
+    accumulatedSecRef.current = 0;
+    runningSinceRef.current = Date.now();
+    acquireWakeLock();
     watchGPS();
-  }, [watchGPS]);
+  }, [watchGPS, acquireWakeLock]);
 
   const pauseTracking = useCallback(() => {
+    accumulatedSecRef.current = computeDuration();
+    runningSinceRef.current = null;
+    setDurationSec(accumulatedSecRef.current);
     setIsPaused(true);
+    releaseWakeLock();
     clearGPS();
-  }, [clearGPS]);
+  }, [clearGPS, computeDuration, releaseWakeLock]);
 
   const resumeTracking = useCallback(() => {
+    runningSinceRef.current = Date.now();
     setIsPaused(false);
+    acquireWakeLock();
     watchGPS();
-  }, [watchGPS]);
+  }, [watchGPS, acquireWakeLock]);
 
   const stopTracking = useCallback(() => {
+    const finalDuration = computeDuration();
+    accumulatedSecRef.current = 0;
+    runningSinceRef.current = null;
     setIsTracking(false);
     setIsPaused(false);
     setIsMinimized(false);
     setGpsError(null);
+    releaseWakeLock();
     clearGPS();
-    if (timerRef.current) clearInterval(timerRef.current);
+    clearSnapshot();
+    setDurationSec(finalDuration);
 
     setDistanceKm((finalDistance) => {
-      setDurationSec((finalDuration) => {
-        setCoordinates((finalCoordinates) => {
-          if (finalDistance > 0 || finalDuration > 10) {
-            const newSession: CardioSession = {
-              id: crypto.randomUUID(),
-              dateISO: new Date().toISOString(),
-              coordinates: finalCoordinates,
-              distanceKm: finalDistance,
-              durationSec: finalDuration,
-            };
-            setHistory((prev) => [newSession, ...prev]);
-            const userId = userIdRef.current;
-            if (userId) {
-              insertCardioSession(supabase, userId, newSession).catch(() => {});
-            }
+      setCoordinates((finalCoordinates) => {
+        if (finalDistance > 0 || finalDuration > 10) {
+          const newSession: CardioSession = {
+            id: crypto.randomUUID(),
+            dateISO: new Date().toISOString(),
+            coordinates: finalCoordinates,
+            distanceKm: finalDistance,
+            durationSec: finalDuration,
+          };
+          setHistory((prev) => [newSession, ...prev]);
+          const userId = userIdRef.current;
+          if (userId) {
+            insertCardioSession(supabase, userId, newSession).catch(() => {});
           }
-          return finalCoordinates; // We keep it in memory for now, although startTracking resets it
-        });
-        return finalDuration;
+        }
+        return finalCoordinates; // We keep it in memory for now, although startTracking resets it
       });
       return finalDistance;
     });
-  }, [clearGPS, supabase]);
+  }, [clearGPS, supabase, computeDuration, releaseWakeLock]);
+
+  // Recuperacion: al arrancar, si quedo una sesion a medias (la PWA murio
+  // sin pasar por stopTracking), se guarda como ruta terminada.
+  const recoveredRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated || isTracking || recoveredRef.current) return;
+    recoveredRef.current = true;
+    const snap = readSnapshot();
+    if (!snap) return;
+    clearSnapshot();
+
+    const lastCoord = snap.coordinates[snap.coordinates.length - 1];
+    // El tiempo "corriendo" tras el ultimo dato es humo: se corta en la
+    // ultima posicion registrada.
+    const runningSec =
+      snap.runningSince !== null && lastCoord
+        ? Math.max(0, (lastCoord.timestamp - snap.runningSince) / 1000)
+        : 0;
+    const duration = Math.floor(snap.accumulatedSec + runningSec);
+    if (snap.distanceKm <= 0 && duration <= 10) return;
+
+    const recovered: CardioSession = {
+      id: crypto.randomUUID(),
+      dateISO: lastCoord
+        ? new Date(lastCoord.timestamp).toISOString()
+        : new Date().toISOString(),
+      coordinates: snap.coordinates,
+      distanceKm: snap.distanceKm,
+      durationSec: duration,
+    };
+    setHistory((prev) => [recovered, ...prev]);
+    const userId = userIdRef.current;
+    if (userId) {
+      insertCardioSession(supabase, userId, recovered).catch(() => {});
+    }
+  }, [hydrated, isTracking, supabase]);
 
   const minimize = useCallback(() => setIsMinimized(true), []);
   const maximize = useCallback(() => setIsMinimized(false), []);

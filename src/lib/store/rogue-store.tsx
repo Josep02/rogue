@@ -139,34 +139,6 @@ function bestEst1RMByExercise(sessions: WorkoutSession[]): Map<string, number> {
   return map;
 }
 
-/** Historial de demo coherente con el peso corporal, para que los rangos no
- *  arranquen vacios tras el onboarding. */
-/** Un unico entreno de demo (no vacio de entrada) SIN llegar a MIN_SESSIONS_TO_RANK
- *  (2): al estar todo en una sola sesion, ningun musculo queda "rankeado" con
- *  datos falsos - el usuario sube de rango solo con entrenos reales. */
-function seedHistory(): WorkoutSession[] {
-  const routineDay = DEMO_ROUTINE.days[0];
-  const daysAgo = 2;
-  const sets: LoggedSet[] = routineDay.exercises.map((ex) => ({
-    exerciseId: ex.exerciseId,
-    grupo: getExerciseInfo(ex.exerciseId).grupo,
-    weightKg: Math.round(ex.suggestedKg * 0.9),
-    reps: ex.reps,
-  }));
-
-  return [
-    {
-      id:
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : "seed-0",
-      dateISO: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString(),
-      dayLabel: routineDay.label,
-      sets,
-    },
-  ];
-}
-
 // --- Mapeo filas de Supabase <-> tipos de la app ---
 
 type ProfileRow = {
@@ -474,8 +446,9 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
       // Base en el perfil ya cargado (trae el username real de Supabase),
       // no en DEFAULT_PROFILE, para no borrarlo al completar el onboarding.
       const profile: Profile = { ...DEFAULT_PROFILE, ...state.profile, ...data, onboarded: true };
-      const sessions = seedHistory();
-      setState((prev) => ({ ...prev, profile, sessions, routineDays: DEMO_ROUTINE.days }));
+      // Sin historial de demo: los usuarios nuevos empiezan de cero, sin
+      // rangos ni entrenos falsos. La rutina de partida si se ofrece.
+      setState((prev) => ({ ...prev, profile, sessions: [], routineDays: DEMO_ROUTINE.days }));
 
       const userId = userIdRef.current;
       if (!userId) return;
@@ -496,10 +469,6 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
           routineIdRef.current = routineId;
         }
         if (routineId) await persistRoutineDays(supabase, routineId, DEMO_ROUTINE.days);
-
-        for (const session of sessions) {
-          await insertWorkoutSession(supabase, userId, session);
-        }
       })();
     },
     [supabase, state.profile],
