@@ -70,16 +70,25 @@ export async function listFavoriteIds(
   return (data ?? []).map((r) => r.exercise_id);
 }
 
+/** Cuantos dias se considera "reciente" un ejercicio abierto. */
+export const RECENT_DAYS = 7;
+
+/** Ejercicios abiertos en los ultimos RECENT_DAYS dias (mas reciente primero).
+ *  Es por tiempo, no por cantidad: un ejercicio deja de ser "reciente" cuando
+ *  pasan los dias, no cuando abres otros. */
 export async function listRecentIds(
   supabase: SupabaseClient,
   userId: string,
-  limit = 10,
+  days = RECENT_DAYS,
 ): Promise<string[]> {
+  const since = new Date(
+    Date.now() - days * 24 * 60 * 60 * 1000,
+  ).toISOString();
   const { data } = await supabase
     .from("exercise_recent_views")
     .select("exercise_id")
     .eq("user_id", userId)
-    .order("viewed_at", { ascending: false })
-    .limit(limit);
+    .gte("viewed_at", since)
+    .order("viewed_at", { ascending: false });
   return (data ?? []).map((r) => r.exercise_id);
 }

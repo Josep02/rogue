@@ -3,13 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, SearchX } from "lucide-react";
 import { ExerciseCard } from "@/components/exercise/exercise-card";
-import { ExerciseMiniCard } from "@/components/exercise/exercise-mini-card";
 import {
   ExerciseFilterBar,
   type ExerciseFilterValue,
 } from "@/components/exercise/exercise-filter-bar";
 import { DEMO_EXERCISES, filterExercises } from "@/lib/exercises/repo";
-import type { Exercise } from "@/lib/exercises/types";
 import { createClient } from "@/lib/supabase/client";
 import {
   getCurrentUserId,
@@ -17,34 +15,11 @@ import {
   listRecentIds,
 } from "@/lib/supabase/exercise-interactions";
 
-const EXERCISE_BY_ID = new Map(DEMO_EXERCISES.map((e) => [e.id, e]));
-
-function idsToExercises(ids: string[]): Exercise[] {
-  return ids.map((id) => EXERCISE_BY_ID.get(id)).filter((e): e is Exercise => !!e);
-}
-
-/** Tira horizontal de tarjetas compactas ("favoritos"/"recientes"). */
-function ExerciseStrip({ title, exercises }: { title: string; exercises: Exercise[] }) {
-  if (exercises.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
-        {title.toUpperCase()}
-      </p>
-      <div className="no-scrollbar -mx-5 flex gap-2.5 overflow-x-auto px-5">
-        {exercises.map((exercise) => (
-          <ExerciseMiniCard key={exercise.id} exercise={exercise} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function BibliotecaPage() {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<ExerciseFilterValue>({});
-  const [favorites, setFavorites] = useState<Exercise[]>([]);
-  const [recent, setRecent] = useState<Exercise[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [recentIds, setRecentIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -57,8 +32,8 @@ export default function BibliotecaPage() {
         listRecentIds(supabase, userId),
       ]);
       if (!active) return;
-      setFavorites(idsToExercises(favIds));
-      setRecent(idsToExercises(recentIds));
+      setFavoriteIds(new Set(favIds));
+      setRecentIds(new Set(recentIds));
     })();
     return () => {
       active = false;
@@ -70,7 +45,13 @@ export default function BibliotecaPage() {
     [query, filters],
   );
 
-  const showStrips = !query && !filters.grupo && !filters.equipo && !filters.dificultad;
+  // Favoritos primero, luego recientes, luego el resto. El sort es estable,
+  // asi que dentro de cada grupo se mantiene el orden del dataset.
+  const sorted = useMemo(() => {
+    const rank = (id: string) =>
+      favoriteIds.has(id) ? 0 : recentIds.has(id) ? 1 : 2;
+    return [...results].sort((a, b) => rank(a.id) - rank(b.id));
+  }, [results, favoriteIds, recentIds]);
 
   return (
     <div className="flex flex-col gap-4 pt-2 pb-4">
@@ -80,13 +61,6 @@ export default function BibliotecaPage() {
           {DEMO_EXERCISES.length} EJERCICIOS EN LA BIBLIOTECA
         </p>
       </div>
-
-      {showStrips && (
-        <>
-          <ExerciseStrip title="Favoritos" exercises={favorites} />
-          <ExerciseStrip title="Recientes" exercises={recent} />
-        </>
-      )}
 
       <label className="flex items-center gap-2.5 rounded-2xl border border-border bg-surface px-4 py-3">
         <Search className="size-4 shrink-0 text-muted-foreground" />
@@ -105,7 +79,7 @@ export default function BibliotecaPage() {
         {results.length} RESULTADO{results.length === 1 ? "" : "S"}
       </p>
 
-      {results.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-3xl border border-border bg-surface py-12 text-center">
           <SearchX className="size-8 text-muted-foreground" />
           <div>
@@ -117,8 +91,18 @@ export default function BibliotecaPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-3">
-          {results.map((exercise) => (
-            <ExerciseCard key={exercise.id} exercise={exercise} />
+          {sorted.map((exercise) => (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              badge={
+                favoriteIds.has(exercise.id)
+                  ? "favorito"
+                  : recentIds.has(exercise.id)
+                    ? "reciente"
+                    : undefined
+              }
+            />
           ))}
         </div>
       )}

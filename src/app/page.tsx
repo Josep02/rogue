@@ -92,28 +92,36 @@ function RankChip({ rank }: { rank: ComputedRank }) {
 
 function TodayCard({
   todayDay,
+  hasRoutine,
   estMinutes,
   onStart,
 }: {
   todayDay: RoutineDay | null;
+  hasRoutine: boolean;
   estMinutes: number;
   onStart: () => void;
 }) {
   if (!todayDay) {
+    // Sin ningun dia de rutina: invitar a crearla. Con rutina pero sin nada
+    // programado hoy: dia de descanso, con acceso a entrenar igual.
     return (
       <div className="flex h-full min-h-[212px] flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border bg-surface p-5 text-center">
         <CalendarPlus className="size-7 text-muted-foreground" />
         <div>
-          <p className="text-sm font-semibold">Aun no tienes dias de rutina</p>
+          <p className="text-sm font-semibold">
+            {hasRoutine ? "Hoy toca descanso" : "Aun no tienes dias de rutina"}
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Crea tu primer dia de entreno desde el editor.
+            {hasRoutine
+              ? "Disfruta el descanso, o entrena igual si te apetece."
+              : "Crea tu primer dia de entreno desde el editor."}
           </p>
         </div>
         <Link
-          href="/rutinas/editor"
+          href={hasRoutine ? "/rutinas" : "/rutinas/editor"}
           className="mt-1 flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background"
         >
-          Crear rutina
+          {hasRoutine ? "Elegir entreno" : "Crear rutina"}
         </Link>
       </div>
     );
@@ -388,7 +396,8 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
 }
 
 export default function Home() {
-  const { profile, ranks, sessions, todayDay, preferences } = useRogue();
+  const { profile, ranks, sessions, todayDay, routineDays, preferences } =
+    useRogue();
   const { start: startWorkout } = useWorkoutSession();
   const [page, setPage] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -474,6 +483,7 @@ export default function Home() {
             <div ref={page0Ref} className="w-full shrink-0 snap-center snap-always">
               <TodayCard
                 todayDay={todayDay}
+                hasRoutine={routineDays.length > 0}
                 estMinutes={estMinutes}
                 onStart={() => todayDay && startWorkout(todayDay)}
               />

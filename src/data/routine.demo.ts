@@ -12,6 +12,7 @@ export const DEMO_ROUTINE: Routine = {
       id: "empuje",
       label: "Empuje",
       focus: "Pecho · Hombro · Triceps",
+      weekdays: [1, 4],
       exercises: [
         { exerciseId: "press-banca", sets: 4, reps: 8, restSec: 120, suggestedKg: 80 },
         { exerciseId: "press-militar", sets: 3, reps: 8, restSec: 120, suggestedKg: 45 },
@@ -24,6 +25,7 @@ export const DEMO_ROUTINE: Routine = {
       id: "tiron",
       label: "Tiron",
       focus: "Espalda · Biceps",
+      weekdays: [2, 5],
       exercises: [
         { exerciseId: "dominadas", sets: 4, reps: 8, restSec: 120, suggestedKg: 0 },
         { exerciseId: "remo-con-barra", sets: 4, reps: 8, restSec: 120, suggestedKg: 70 },
@@ -36,6 +38,7 @@ export const DEMO_ROUTINE: Routine = {
       id: "pierna",
       label: "Pierna",
       focus: "Cuadriceps · Isquios · Gluteo",
+      weekdays: [3, 6],
       exercises: [
         { exerciseId: "sentadilla", sets: 4, reps: 6, restSec: 150, suggestedKg: 110 },
         { exerciseId: "peso-muerto-rumano", sets: 3, reps: 8, restSec: 120, suggestedKg: 90 },

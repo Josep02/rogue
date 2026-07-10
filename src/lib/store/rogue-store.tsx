@@ -108,7 +108,11 @@ type RogueContextValue = {
   ranks: ComputedRank[];
   muscleRanks: ComputedMuscleRank[];
   routineDays: RoutineDay[];
-  /** null cuando la rutina no tiene ningun dia (p.ej. se borraron todos). */
+  /** Dias de rutina programados para el dia de la semana actual (getDay()).
+   *  Vacio = hoy toca descanso (o no hay rutina). */
+  todayDays: RoutineDay[];
+  /** Primer entreno programado para hoy, o null si hoy es descanso. Atajo
+   *  de conveniencia sobre todayDays. */
   todayDay: RoutineDay | null;
   preferences: Preferences;
   completeOnboarding: (data: Partial<Profile>) => void;
@@ -244,7 +248,7 @@ async function fetchRoutine(
 
   const { data: dayRows } = await supabase
     .from("routine_days")
-    .select("id, label, focus, position")
+    .select("id, label, focus, position, weekdays")
     .eq("routine_id", routineRow.id)
     .order("position");
   const days = dayRows ?? [];
@@ -276,6 +280,7 @@ async function fetchRoutine(
       id: d.id,
       label: d.label,
       focus: d.focus,
+      weekdays: (d.weekdays as number[] | null) ?? [],
       exercises: exByDay.get(d.id) ?? [],
     })),
   };
@@ -330,7 +335,13 @@ async function persistRoutineDays(
     const day = days[i];
     const { data: dayRow } = await supabase
       .from("routine_days")
-      .insert({ routine_id: routineId, position: i, label: day.label, focus: day.focus })
+      .insert({
+        routine_id: routineId,
+        position: i,
+        label: day.label,
+        focus: day.focus,
+        weekdays: day.weekdays ?? [],
+      })
       .select("id")
       .single();
     if (!dayRow) continue;
@@ -655,13 +666,12 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
 
   const ranks = useMemo(() => aggregateToGroups(muscleRanks), [muscleRanks]);
 
-  const todayDay = useMemo(
-    () =>
-      state.routineDays.length > 0
-        ? state.routineDays[state.sessions.length % state.routineDays.length]
-        : null,
-    [state.sessions.length, state.routineDays],
-  );
+  const todayDays = useMemo(() => {
+    const weekday = new Date().getDay(); // 0=domingo..6=sabado
+    return state.routineDays.filter((d) => d.weekdays.includes(weekday));
+  }, [state.routineDays]);
+
+  const todayDay = todayDays[0] ?? null;
 
   const value: RogueContextValue = {
     hydrated,
@@ -671,6 +681,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
     ranks,
     muscleRanks,
     routineDays: state.routineDays,
+    todayDays,
     todayDay,
     preferences: state.preferences,
     completeOnboarding,

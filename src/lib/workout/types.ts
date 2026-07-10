@@ -51,12 +51,31 @@ export type RoutineDay = {
   id: string;
   label: string;
   focus: string;
+  /**
+   * Dias de la semana en los que toca este entreno (convencion de
+   * Date.getDay(): 0=domingo, 1=lunes ... 6=sabado). Vacio = sin dia fijo
+   * (solo accesible como "entreno libre"). Un dia de la semana sin ningun
+   * RoutineDay asignado es un dia de descanso.
+   */
+  weekdays: number[];
   exercises: RoutineExercise[];
 };
 
 export type Routine = {
   name: string;
   days: RoutineDay[];
+};
+
+/** Etiquetas de los dias de la semana en orden lunes->domingo (getDay()). */
+export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
+export const WEEKDAY_LABELS: Record<number, string> = {
+  0: "D",
+  1: "L",
+  2: "M",
+  3: "X",
+  4: "J",
+  5: "V",
+  6: "S",
 };
 
 /** Una serie efectivamente registrada en una sesion. */

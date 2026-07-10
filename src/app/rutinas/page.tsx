@@ -5,11 +5,13 @@ import { CalendarPlus, Pencil, Play } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { getExerciseInfo, useRogue } from "@/lib/store/rogue-store";
 import { useWorkoutSession } from "@/lib/store/workout-session-store";
+import { WEEKDAY_LABELS, WEEKDAY_ORDER } from "@/lib/workout/types";
 import { cn } from "@/lib/utils";
 
 export default function RutinasPage() {
-  const { routineDays, todayDay } = useRogue();
+  const { routineDays, todayDays } = useRogue();
   const { start: startWorkout } = useWorkoutSession();
+  const todayIds = new Set(todayDays.map((d) => d.id));
 
   return (
     <div className="flex flex-col gap-5 pt-2 pb-4">
@@ -49,7 +51,7 @@ export default function RutinasPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {routineDays.map((day) => {
-            const isToday = day.id === todayDay?.id;
+            const isToday = todayIds.has(day.id);
             return (
               <PastelCard
                 key={day.id}
@@ -69,12 +71,27 @@ export default function RutinasPage() {
                     <p className="mt-0.5 font-mono text-xs opacity-70">
                       {day.focus}
                     </p>
+                    <div className="mt-2 flex gap-1">
+                      {WEEKDAY_ORDER.map((wd) => (
+                        <span
+                          key={wd}
+                          className={cn(
+                            "flex size-5 items-center justify-center rounded-full text-[10px] font-medium",
+                            day.weekdays.includes(wd)
+                              ? "bg-black/15 dark:bg-white/25"
+                              : "text-muted-foreground/50",
+                          )}
+                        >
+                          {WEEKDAY_LABELS[wd]}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  {isToday && (
+                  {day.exercises.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => todayDay && startWorkout(todayDay)}
-                      aria-label="Empezar entreno"
+                      onClick={() => startWorkout(day)}
+                      aria-label={`Empezar ${day.label}`}
                       className="flex size-10 items-center justify-center rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
                     >
                       <Play className="size-4" />

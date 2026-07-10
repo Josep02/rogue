@@ -40,7 +40,12 @@ import { useRogue, getExerciseInfo } from "@/lib/store/rogue-store";
 import { DEMO_EXERCISES, EXERCISE_IMG_BASE } from "@/lib/exercises/repo";
 import { ExerciseSelectorModal } from "@/components/routines/exercise-selector-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import type { RoutineDay, RoutineExercise } from "@/lib/workout/types";
+import {
+  WEEKDAY_LABELS,
+  WEEKDAY_ORDER,
+  type RoutineDay,
+  type RoutineExercise,
+} from "@/lib/workout/types";
 import type { Exercise } from "@/lib/exercises/types";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +98,7 @@ export default function ConstructorPage() {
       id,
       label: "Nuevo día",
       focus: "Musculo principal",
+      weekdays: [],
       exercises: [],
     };
     setDays((prev) => [...prev, newDay]);
@@ -345,6 +351,43 @@ function SortableDay({
                 className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-foreground/30"
               />
             </div>
+          </div>
+
+          {/* Dias de la semana */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-mono text-[10px] text-muted-foreground">
+              DIAS DE LA SEMANA
+            </label>
+            <div className="flex gap-1.5">
+              {WEEKDAY_ORDER.map((wd) => {
+                const active = day.weekdays.includes(wd);
+                return (
+                  <button
+                    key={wd}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() =>
+                      onUpdate({
+                        weekdays: active
+                          ? day.weekdays.filter((d) => d !== wd)
+                          : [...day.weekdays, wd],
+                      })
+                    }
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-full text-xs font-medium transition-colors",
+                      active
+                        ? "bg-foreground text-background"
+                        : "border border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {WEEKDAY_LABELS[wd]}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Sin dias marcados: solo disponible como entreno libre.
+            </p>
           </div>
 
           {/* Ejercicios */}

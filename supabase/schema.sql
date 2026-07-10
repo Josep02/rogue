@@ -134,7 +134,10 @@ create table if not exists routine_days (
   routine_id uuid not null references routines (id) on delete cascade,
   position int not null,
   label text not null,
-  focus text not null default ''
+  focus text not null default '',
+  -- Dias de la semana en los que toca (convencion getDay(): 0=domingo..6=sabado).
+  -- Vacio = sin dia fijo (solo "entreno libre").
+  weekdays int[] not null default '{}'
 );
 
 create table if not exists routine_exercises (
