@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "./server";
+import { createAdminClient } from "./admin";
 
 export type AuthState = { error?: string } | undefined;
 
@@ -16,12 +17,19 @@ export async function signIn(
 
   let email = identifier;
   if (!identifier.includes("@")) {
-    const { data } = await supabase.rpc("email_for_username", {
-      p_username: identifier,
-    });
+    // Resolucion username -> email con la clave secreta (bypassa RLS), para
+    // que este lookup no sea invocable por cualquiera con la clave publica
+    // (evitaria enumerar usernames/emails validos). Nunca se devuelve el
+    // email al navegador: solo se usa aqui, en el servidor, para el login.
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("profiles")
+      .select("email")
+      .ilike("username", identifier)
+      .maybeSingle();
     // No revelamos si el username existe o no: mismo error generico.
     if (!data) return { error: "Usuario/email o contrasena incorrectos." };
-    email = data;
+    email = data.email;
   }
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });

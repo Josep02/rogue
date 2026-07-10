@@ -1,6 +1,6 @@
 // Service worker minimo de Rogue: habilita la instalacion como app y da un
 // fallback offline basico (cache "network-first" para navegaciones).
-const CACHE = "rogue-v2";
+const CACHE = "rogue-v3";
 const OFFLINE_URLS = [
   "/",
   "/biblioteca",
@@ -33,6 +33,13 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
 
+  const url = new URL(request.url);
+
+  // Nunca interceptar peticiones a otro origen (Supabase, etc.): si se
+  // cachean, se sirven respuestas obsoletas (datos de otro usuario o
+  // desactualizados tras guardar cambios) en vez de ir siempre a red.
+  if (url.origin !== self.location.origin) return;
+
   // Navegaciones: network-first, cae a cache si no hay red.
   if (request.mode === "navigate") {
     event.respondWith(
@@ -47,16 +54,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Resto de GET: cache-first con relleno en segundo plano.
-  event.respondWith(
-    caches.match(request).then(
-      (cached) =>
-        cached ||
-        fetch(request).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
-          return res;
-        }),
-    ),
-  );
+  // Solo los assets estaticos versionados de Next (nombre con hash, nunca
+  // cambian de contenido bajo la misma URL) son cache-first seguros. Todo lo
+  // demas del propio origen (fetches RSC de navegacion entre paginas, etc.)
+  // se deja pasar a red sin interceptar para no servir contenido obsoleto.
+  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((res) => {
+            const copy = res.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy));
+            return res;
+          }),
+      ),
+    );
+  }
 });

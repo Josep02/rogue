@@ -109,19 +109,11 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure handle_new_user();
 
--- Resuelve un username al email asociado, para poder iniciar sesion con
--- username en vez de email (supabase.auth.signInWithPassword solo acepta
--- email). security definer porque el llamante aun no tiene sesion.
-create or replace function email_for_username(p_username text)
-returns text
-language sql
-security definer
-set search_path = public
-as $$
-  select email from profiles where lower(username) = lower(p_username) limit 1;
-$$;
-
-grant execute on function email_for_username(text) to anon, authenticated;
+-- La resolucion username -> email para el login (supabase.auth.signInWithPassword
+-- solo acepta email) se hace desde el servidor con la clave secreta
+-- (src/lib/supabase/admin.ts), NO con una funcion publica: una funcion
+-- callable con la clave anonima permitiria a cualquiera enumerar usernames
+-- validos y cosechar los emails asociados.
 
 -- ============================================================
 -- 3. Rutinas propias (editor de rutinas, drag & drop)

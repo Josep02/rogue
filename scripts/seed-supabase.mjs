@@ -1,9 +1,9 @@
 // Seed del catalogo de ejercicios a Supabase (tablas muscle_groups,
 // equipment y exercises de supabase/schema.sql).
 //
-// Requiere variables de entorno:
-//   SUPABASE_URL              https://<proyecto>.supabase.co
-//   SUPABASE_SERVICE_ROLE_KEY clave service_role (no la anon)
+// Requiere variables de entorno (las mismas de .env.local):
+//   NEXT_PUBLIC_SUPABASE_URL  https://<proyecto>.supabase.co
+//   SUPABASE_SECRET_KEY       clave secreta (sb_secret_..., no la publishable)
 //
 // Uso: node scripts/seed-supabase.mjs
 // Mientras no haya credenciales, la app funciona en modo demo leyendo
@@ -13,12 +13,12 @@ import { readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_KEY = process.env.SUPABASE_SECRET_KEY;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error(
-    "Faltan SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY. " +
+    "Faltan NEXT_PUBLIC_SUPABASE_URL y/o SUPABASE_SECRET_KEY. " +
       "La app seguira en modo demo con el dataset local.",
   );
   process.exit(1);
