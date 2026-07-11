@@ -187,7 +187,7 @@ export function WorkoutSessionModal() {
         </button>
       </header>
 
-      <div className="mx-auto flex w-full flex-1 flex-col gap-4 overflow-y-auto px-5 pb-6 pt-2 md:max-w-2xl">
+      <div className="mx-auto flex w-full flex-1 flex-col gap-4 overflow-y-auto px-5 pb-40 pt-2 md:max-w-2xl">
         {day.exercises.map((ex) => {
           const info = getExerciseInfo(ex.exerciseId);
           return (
@@ -285,9 +285,9 @@ export function WorkoutSessionModal() {
         })}
       </div>
 
-      <div className="mx-auto flex w-full shrink-0 flex-col gap-2 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 md:max-w-2xl">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mx-auto flex w-full flex-col gap-2 bg-gradient-to-t from-background via-background to-transparent px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-12 md:max-w-2xl">
         {restUntil !== null && (
-          <div className="mx-auto w-full max-w-sm rounded-2xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-xl">
+          <div className="pointer-events-auto mx-auto w-full max-w-sm rounded-2xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-xl">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Descanso</span>
               <span className="font-mono font-medium">{restRemaining}s</span>
@@ -313,7 +313,7 @@ export function WorkoutSessionModal() {
           type="button"
           disabled={doneCount === 0}
           onClick={finish}
-          className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-accent py-4 text-sm font-medium text-accent-foreground transition-opacity disabled:opacity-40"
+          className="pointer-events-auto mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-accent py-4 text-sm font-medium text-accent-foreground transition-opacity disabled:opacity-40"
         >
           Finalizar entreno
           <Check className="size-4" />
