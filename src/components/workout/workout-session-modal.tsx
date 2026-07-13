@@ -3,12 +3,16 @@
 import { useState } from "react";
 import {
   ArrowRight,
+  Bell,
   Check,
   Clock,
   Minimize2,
   Plus,
   Repeat2,
+  ThumbsUp,
   Trash2,
+  TrendingDown,
+  TrendingUp,
   Trophy,
   X,
 } from "lucide-react";
@@ -44,7 +48,13 @@ export function WorkoutSessionModal() {
     addSet,
     removeSet,
     replaceExercise,
+    noteDrafts,
+    setExerciseFlag,
+    setExerciseNote,
+    reminders,
+    dismissReminders,
     skipRest,
+    adjustRest,
     finish,
   } = useWorkoutSession();
 
@@ -155,6 +165,50 @@ export function WorkoutSessionModal() {
   // ── Sesion activa ─────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background pt-[env(safe-area-inset-top)]">
+      {reminders.length > 0 && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/85 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-border bg-surface p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex size-9 items-center justify-center rounded-full bg-accent/15 text-accent">
+                <Bell className="size-4" />
+              </span>
+              <p className="text-base font-semibold">Recordatorio</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {reminders.map((r) => (
+                <div
+                  key={r.exerciseId}
+                  className="rounded-2xl bg-muted/60 px-3 py-2.5 text-sm"
+                >
+                  <p className="font-medium">{r.exerciseName}</p>
+                  <p className="mt-0.5 text-muted-foreground">
+                    La última vez marcaste{" "}
+                    <span className="font-medium text-foreground">
+                      {r.flag === "subir" ? "subir peso" : "bajar peso"}
+                    </span>
+                    {r.weightKg !== null && (
+                      <>
+                        {" "}
+                        ({formatWeight(r.weightKg, preferences.unit)}{" "}
+                        {preferences.unit})
+                      </>
+                    )}
+                    .
+                  </p>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={dismissReminders}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-sm font-medium text-accent-foreground transition-transform active:scale-[0.99]"
+            >
+              Entendido
+              <Check className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
       <header className="mx-auto flex w-full shrink-0 items-center justify-between px-4 py-2 pt-10 md:max-w-2xl">
         <button
           type="button"
@@ -280,17 +334,75 @@ export function WorkoutSessionModal() {
                 <Plus className="size-3.5" />
                 Añadir serie
               </button>
+
+              <div className="mt-3 border-t border-border pt-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { flag: "subir", label: "Subir peso", Icon: TrendingUp },
+                      { flag: "bajar", label: "Bajar", Icon: TrendingDown },
+                      { flag: "ok", label: "OK", Icon: ThumbsUp },
+                    ] as const
+                  ).map(({ flag, label, Icon }) => {
+                    const chipActive = noteDrafts[ex.exerciseId]?.flag === flag;
+                    return (
+                      <button
+                        key={flag}
+                        type="button"
+                        onClick={() => setExerciseFlag(ex.exerciseId, flag)}
+                        aria-pressed={chipActive}
+                        className={cn(
+                          "flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors active:scale-95",
+                          chipActive
+                            ? "border-foreground bg-accent text-accent-foreground"
+                            : "border-border text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        <Icon className="size-3" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <input
+                  type="text"
+                  value={noteDrafts[ex.exerciseId]?.text ?? ""}
+                  onChange={(e) => setExerciseNote(ex.exerciseId, e.target.value)}
+                  placeholder="Nota (opcional)"
+                  className="mt-2 w-full rounded-xl bg-muted/60 px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                />
+              </div>
             </div>
           );
         })}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mx-auto flex w-full flex-col gap-2 bg-gradient-to-t from-background via-background to-transparent px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-12 md:max-w-2xl">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mx-auto flex w-full flex-col gap-2 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 md:max-w-2xl">
         {restUntil !== null && (
           <div className="pointer-events-auto mx-auto w-full max-w-sm rounded-2xl border border-border bg-surface/90 px-4 py-2.5 backdrop-blur-xl">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Descanso</span>
-              <span className="font-mono font-medium">{restRemaining}s</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => adjustRest(-15)}
+                  aria-label="Restar 15 segundos"
+                  className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground hover:text-foreground active:scale-95"
+                >
+                  −15
+                </button>
+                <span className="w-10 text-center font-mono font-medium tabular-nums">
+                  {restRemaining}s
+                </span>
+                <button
+                  type="button"
+                  onClick={() => adjustRest(15)}
+                  aria-label="Sumar 15 segundos"
+                  className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground hover:text-foreground active:scale-95"
+                >
+                  +15
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={skipRest}

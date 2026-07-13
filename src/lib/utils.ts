@@ -17,3 +17,13 @@ export function formatDuration(totalSec: number): string {
     ? `${hours}:${pad(minutes)}:${pad(seconds)}`
     : `${minutes}:${pad(seconds)}`;
 }
+
+/** Formatea una duracion en segundos de forma legible: "45 min", "1 h 5 min",
+ *  "2 h". Para resumenes y estadisticas (no para un cronometro en vivo). */
+export function formatDurationLabel(totalSec: number): string {
+  const totalMin = Math.round(Math.max(0, totalSec) / 60);
+  if (totalMin < 60) return `${totalMin} min`;
+  const hours = Math.floor(totalMin / 60);
+  const minutes = totalMin % 60;
+  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
+}

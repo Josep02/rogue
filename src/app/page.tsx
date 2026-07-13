@@ -9,7 +9,9 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Flame,
+  Hourglass,
   Layers,
   Lock,
   Timer,
@@ -24,7 +26,7 @@ import { getDisplayName, type RoutineDay, type WorkoutSession } from "@/lib/work
 import { DEMO_EXERCISES } from "@/lib/exercises/repo";
 import { DIFFICULTY_LABELS, EQUIPMENT_LABELS } from "@/lib/exercises/types";
 import { formatWeight } from "@/lib/units";
-import { cn, formatDuration } from "@/lib/utils";
+import { cn, formatDurationLabel } from "@/lib/utils";
 
 const WEEKDAY_LETTERS = ["L", "M", "X", "J", "V", "S", "D"];
 
@@ -376,9 +378,7 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
                           {s.durationSec !== undefined && (
                             <>
                               <Timer className="size-2.5" />
-                              <span className="tabular-nums">
-                                {formatDuration(s.durationSec)}
-                              </span>
+                              <span>{formatDurationLabel(s.durationSec)}</span>
                               <span aria-hidden>·</span>
                             </>
                           )}
@@ -448,7 +448,7 @@ export default function Home() {
   // Momento de montaje: fija la ventana de "ultimos 7 dias" sin leer Date.now()
   // durante el render (funcion impura).
   const [mountedAt] = useState(() => Date.now());
-  const { weekSessions, weekVolume } = useMemo(() => {
+  const { weekSessions, weekVolume, weekTimeSec } = useMemo(() => {
     const weekAgo = mountedAt - 7 * 24 * 60 * 60 * 1000;
     const inWeek = sessions.filter(
       (s) => new Date(s.dateISO).getTime() >= weekAgo,
@@ -458,8 +458,25 @@ export default function Home() {
         sum + s.sets.reduce((a, set) => a + set.weightKg * set.reps, 0),
       0,
     );
-    return { weekSessions: inWeek, weekVolume: volume };
+    const timeSec = inWeek.reduce((sum, s) => sum + (s.durationSec ?? 0), 0);
+    return { weekSessions: inWeek, weekVolume: volume, weekTimeSec: timeSec };
   }, [sessions, mountedAt]);
+
+  // Estadisticas de duracion sobre todas las sesiones que la tengan registrada
+  // (sesiones antiguas sin cronometro se ignoran para no falsear la media).
+  const timeStats = useMemo(() => {
+    const timed = sessions.filter(
+      (s) => s.durationSec !== undefined && s.durationSec > 0,
+    );
+    if (timed.length === 0) return { avgSec: 0, longestSec: 0, count: 0 };
+    const total = timed.reduce((sum, s) => sum + (s.durationSec ?? 0), 0);
+    const longest = timed.reduce((m, s) => Math.max(m, s.durationSec ?? 0), 0);
+    return {
+      avgSec: Math.round(total / timed.length),
+      longestSec: longest,
+      count: timed.length,
+    };
+  }, [sessions]);
   const estMinutes = todayDay ? todayDay.exercises.length * 9 : 0;
 
   // Sugerencias reales: ejercicios compuestos de los grupos que menos has
@@ -581,6 +598,40 @@ export default function Home() {
               {weekSessions.length}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">esta semana</p>
+          </div>
+        </PastelCard>
+      </div>
+
+      <div className="-mx-5 grid grid-cols-3 gap-3 px-5 pb-1">
+        <PastelCard variant="neutral" className="flex flex-col gap-2">
+          <Clock className="size-4 text-muted-foreground" />
+          <div>
+            <p className="font-mono text-lg font-medium leading-none">
+              {timeStats.count > 0 ? formatDurationLabel(timeStats.avgSec) : "—"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">media / entreno</p>
+          </div>
+        </PastelCard>
+
+        <PastelCard variant="neutral" className="flex flex-col gap-2">
+          <Clock className="size-4 text-muted-foreground" />
+          <div>
+            <p className="font-mono text-lg font-medium leading-none">
+              {weekTimeSec > 0 ? formatDurationLabel(weekTimeSec) : "—"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">tiempo semana</p>
+          </div>
+        </PastelCard>
+
+        <PastelCard variant="neutral" className="flex flex-col gap-2">
+          <Hourglass className="size-4 text-muted-foreground" />
+          <div>
+            <p className="font-mono text-lg font-medium leading-none">
+              {timeStats.longestSec > 0
+                ? formatDurationLabel(timeStats.longestSec)
+                : "—"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">más largo</p>
           </div>
         </PastelCard>
       </div>

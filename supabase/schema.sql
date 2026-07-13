@@ -216,12 +216,30 @@ create table if not exists workout_sets (
   position int not null
 );
 
+-- Notas / flags por ejercicio dentro de una sesion. Un flag "subir"/"bajar"
+-- dispara un recordatorio la proxima vez que toque ese ejercicio, hasta que se
+-- marca acknowledged. weight_kg = peso mas alto usado ese dia (para el mensaje).
+create table if not exists exercise_notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  session_id uuid not null references workout_sessions (id) on delete cascade,
+  exercise_id text not null,
+  flag text check (flag in ('subir', 'bajar', 'ok')),
+  note text,
+  weight_kg numeric,
+  acknowledged boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists workout_sessions_user_idx on workout_sessions (user_id, date desc);
 create index if not exists workout_sets_session_idx on workout_sets (session_id);
 create index if not exists workout_sets_exercise_idx on workout_sets (exercise_id);
+create index if not exists exercise_notes_reminder_idx
+  on exercise_notes (user_id, exercise_id, created_at desc);
 
 alter table workout_sessions enable row level security;
 alter table workout_sets enable row level security;
+alter table exercise_notes enable row level security;
 
 create policy "el usuario gestiona sus sesiones" on workout_sessions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -232,6 +250,9 @@ create policy "el usuario gestiona las series de sus sesiones" on workout_sets
   ) with check (
     exists (select 1 from workout_sessions s where s.id = session_id and s.user_id = auth.uid())
   );
+
+create policy "el usuario gestiona sus notas de ejercicio" on exercise_notes
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Actualiza "ultima vez usada" de la rutina cada vez que se registra una
 -- sesion ligada a ella (alimenta la seccion de rutinas recientes).

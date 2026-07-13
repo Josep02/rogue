@@ -96,3 +96,29 @@ export type WorkoutSession = {
    *  descansos y pausas). Opcional: sesiones antiguas pueden no tenerla. */
   durationSec?: number;
 };
+
+/** Marca rapida que el usuario pone a un ejercicio durante la sesion. "subir"
+ *  y "bajar" disparan un recordatorio la proxima vez que toque ese ejercicio. */
+export type ExerciseNoteFlag = "subir" | "bajar" | "ok";
+
+/** Nota/flag de un ejercicio dentro de una sesion. Se guarda solo si hay flag
+ *  o texto. weightKg = peso mas alto usado ese dia en ese ejercicio (para el
+ *  mensaje del recordatorio). acknowledged = si el recordatorio ya se mostro. */
+export type ExerciseNote = {
+  id: string;
+  sessionId: string;
+  exerciseId: string;
+  flag: ExerciseNoteFlag | null;
+  text: string | null;
+  weightKg: number | null;
+  acknowledged: boolean;
+  dateISO: string;
+};
+
+/** Borrador de nota que se recoge en la UI de la sesion antes de guardar. */
+export type ExerciseNoteInput = {
+  exerciseId: string;
+  flag: ExerciseNoteFlag | null;
+  text: string | null;
+  weightKg: number | null;
+};

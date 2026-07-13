@@ -26,6 +26,8 @@ import {
 import { DEMO_ROUTINE } from "@/data/routine.demo";
 import { createClient } from "@/lib/supabase/client";
 import type {
+  ExerciseNote,
+  ExerciseNoteInput,
   LoggedSet,
   Preferences,
   Profile,
@@ -90,6 +92,7 @@ type RogueState = {
   sessions: WorkoutSession[];
   routineDays: RoutineDay[];
   preferences: Preferences;
+  exerciseNotes: ExerciseNote[];
 };
 
 const DEFAULT_STATE: RogueState = {
@@ -97,6 +100,7 @@ const DEFAULT_STATE: RogueState = {
   sessions: [],
   routineDays: DEMO_ROUTINE.days,
   preferences: DEFAULT_PREFERENCES,
+  exerciseNotes: [],
 };
 
 type RogueContextValue = {
@@ -125,7 +129,13 @@ type RogueContextValue = {
     dayLabel: string,
     sets: LoggedSet[],
     durationSec?: number,
+    notes?: ExerciseNoteInput[],
   ) => LogResult;
+  /** Notas/flags de ejercicio guardadas (para historial y recordatorios). */
+  exerciseNotes: ExerciseNote[];
+  /** Marca como vistos los recordatorios pendientes de estos ejercicios, para
+   *  que no vuelvan a saltar. */
+  acknowledgeReminders: (exerciseIds: string[]) => void;
   saveRoutine: (days: RoutineDay[]) => void;
   resetAll: () => void;
 };
@@ -362,6 +372,48 @@ async function insertWorkoutSession(
   );
 }
 
+async function fetchExerciseNotes(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<ExerciseNote[]> {
+  const { data } = await supabase
+    .from("exercise_notes")
+    .select("id, session_id, exercise_id, flag, note, weight_kg, acknowledged, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+  return (data ?? []).map((n) => ({
+    id: n.id,
+    sessionId: n.session_id,
+    exerciseId: n.exercise_id,
+    flag: n.flag as ExerciseNote["flag"],
+    text: n.note,
+    weightKg: n.weight_kg === null ? null : Number(n.weight_kg),
+    acknowledged: n.acknowledged,
+    dateISO: n.created_at,
+  }));
+}
+
+async function insertExerciseNotes(
+  supabase: SupabaseClient,
+  userId: string,
+  notes: ExerciseNote[],
+) {
+  if (notes.length === 0) return;
+  await supabase.from("exercise_notes").insert(
+    notes.map((n) => ({
+      id: n.id,
+      user_id: userId,
+      session_id: n.sessionId,
+      exercise_id: n.exerciseId,
+      flag: n.flag,
+      note: n.text,
+      weight_kg: n.weightKg,
+      acknowledged: n.acknowledged,
+      created_at: n.dateISO,
+    })),
+  );
+}
+
 export function RogueProvider({ children }: { children: React.ReactNode }) {
   const [supabase] = useState(() => createClient());
   const pathname = usePathname();
@@ -402,11 +454,13 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const [{ data: profileRow }, routine, sessions] = await Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        fetchRoutine(supabase, user.id),
-        fetchSessions(supabase, user.id),
-      ]);
+      const [{ data: profileRow }, routine, sessions, exerciseNotes] =
+        await Promise.all([
+          supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+          fetchRoutine(supabase, user.id),
+          fetchSessions(supabase, user.id),
+          fetchExerciseNotes(supabase, user.id),
+        ]);
       // No marcar userIdRef hasta que sepamos que este efecto sigue vigente:
       // si se aborto (p.ej. un cambio de pathname a mitad de la carga), un
       // efecto posterior no debe pensar que este usuario "ya estaba cargado"
@@ -422,6 +476,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
         preferences: profileRow ? rowToPreferences(profileRow) : DEFAULT_PREFERENCES,
         sessions,
         routineDays: routine && routine.days.length > 0 ? routine.days : DEMO_ROUTINE.days,
+        exerciseNotes,
       });
       setHydrated(true);
     }
@@ -527,7 +582,12 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logSession = useCallback(
-    (dayLabel: string, sets: LoggedSet[], durationSec?: number): LogResult => {
+    (
+      dayLabel: string,
+      sets: LoggedSet[],
+      durationSec?: number,
+      notes?: ExerciseNoteInput[],
+    ): LogResult => {
       const session: WorkoutSession = {
         id:
           typeof crypto !== "undefined" && crypto.randomUUID
@@ -538,6 +598,24 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
         sets,
         durationSec,
       };
+
+      // Convierte los borradores de nota en filas persistibles ligadas a la
+      // sesion recien creada (solo las que tienen flag o texto).
+      const noteRows: ExerciseNote[] = (notes ?? [])
+        .filter((n) => n.flag !== null || (n.text ?? "").trim() !== "")
+        .map((n) => ({
+          id:
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `n-${Date.now()}-${n.exerciseId}`,
+          sessionId: session.id,
+          exerciseId: n.exerciseId,
+          flag: n.flag,
+          text: (n.text ?? "").trim() || null,
+          weightKg: n.weightKg,
+          acknowledged: false,
+          dateISO: session.dateISO,
+        }));
 
       const prevBest = bestEst1RMByExercise(state.sessions);
       const newBest = bestEst1RMByExercise([session]);
@@ -576,14 +654,58 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
         if (up) rankChanges.push({ muscle: a.muscle, before: b, after: a, up, newlyRanked });
       }
 
-      setState((prev) => ({ ...prev, sessions: nextSessions }));
+      setState((prev) => ({
+        ...prev,
+        sessions: nextSessions,
+        exerciseNotes: [...prev.exerciseNotes, ...noteRows],
+      }));
 
       const userId = userIdRef.current;
-      if (userId) insertWorkoutSession(supabase, userId, session).catch(() => {});
+      if (userId) {
+        insertWorkoutSession(supabase, userId, session)
+          // Las notas se insertan despues: dependen de la fila de sesion (FK).
+          .then(() => insertExerciseNotes(supabase, userId, noteRows))
+          .catch(() => {});
+      }
 
       return { session, prs, rankChanges };
     },
     [state.sessions, state.profile.bodyweightKg, state.profile.sex, supabase],
+  );
+
+  // Marca como vistos los recordatorios pendientes de estos ejercicios para que
+  // no vuelvan a saltar. Actualiza estado local y Supabase (best-effort).
+  const acknowledgeReminders = useCallback(
+    (exerciseIds: string[]) => {
+      if (exerciseIds.length === 0) return;
+      const ids = new Set(exerciseIds);
+      const affected = state.exerciseNotes.filter(
+        (n) => ids.has(n.exerciseId) && !n.acknowledged,
+      );
+      if (affected.length === 0) return;
+
+      setState((prev) => ({
+        ...prev,
+        exerciseNotes: prev.exerciseNotes.map((n) =>
+          ids.has(n.exerciseId) && !n.acknowledged
+            ? { ...n, acknowledged: true }
+            : n,
+        ),
+      }));
+
+      const userId = userIdRef.current;
+      if (userId) {
+        supabase
+          .from("exercise_notes")
+          .update({ acknowledged: true })
+          .in(
+            "id",
+            affected.map((n) => n.id),
+          )
+          .then(() => {});
+      }
+    },
+    [state.exerciseNotes, supabase],
   );
 
   const saveRoutine = useCallback(
@@ -665,6 +787,8 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
     updatePreferences,
     updateUsername,
     logSession,
+    exerciseNotes: state.exerciseNotes,
+    acknowledgeReminders,
     saveRoutine,
     resetAll,
   };

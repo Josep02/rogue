@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -14,12 +15,30 @@ import {
   type LogResult,
 } from "@/lib/store/rogue-store";
 import { fromKg, toKg } from "@/lib/units";
-import type { LoggedSet, RoutineDay, WeightUnit } from "@/lib/workout/types";
+import type {
+  ExerciseNoteFlag,
+  ExerciseNoteInput,
+  LoggedSet,
+  RoutineDay,
+  WeightUnit,
+} from "@/lib/workout/types";
 
 /** weightKg guarda el numero tal como se muestra/edita, EN LA UNIDAD DE
  *  PREFERENCIA del usuario (a pesar del nombre). Solo se convierte a kg al
  *  entrar (buildRows, desde suggestedKg) y al salir (finish, hacia LoggedSet). */
 export type SetState = { weightKg: string; reps: string; done: boolean };
+
+/** Borrador de nota por ejercicio mientras dura la sesion. */
+export type NoteDraft = { flag: ExerciseNoteFlag | null; text: string };
+
+/** Recordatorio a mostrar al empezar: la ultima vez se marco subir/bajar en
+ *  este ejercicio y aun no se ha visto. weightKg en kg (se formatea en la UI). */
+export type Reminder = {
+  exerciseId: string;
+  exerciseName: string;
+  flag: ExerciseNoteFlag;
+  weightKg: number | null;
+};
 
 type Phase = "active" | "done";
 
@@ -47,7 +66,18 @@ type WorkoutSessionContextValue = {
   addSet: (exId: string) => void;
   removeSet: (exId: string, i: number) => void;
   replaceExercise: (oldExId: string, newExId: string) => void;
+  /** Notas/flags en curso por ejercicio (exerciseId -> borrador). */
+  noteDrafts: Record<string, NoteDraft>;
+  /** Pone/quita el flag rapido de un ejercicio (toggle si es el mismo). */
+  setExerciseFlag: (exId: string, flag: ExerciseNoteFlag) => void;
+  /** Actualiza el texto libre de la nota de un ejercicio. */
+  setExerciseNote: (exId: string, text: string) => void;
+  /** Recordatorios pendientes calculados al empezar la sesion. */
+  reminders: Reminder[];
+  /** Descarta los recordatorios y los marca como vistos. */
+  dismissReminders: () => void;
   skipRest: () => void;
+  adjustRest: (deltaSec: number) => void;
   finish: () => void;
 };
 
@@ -75,7 +105,8 @@ export function WorkoutSessionProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { logSession, preferences } = useRogue();
+  const { logSession, preferences, exerciseNotes, acknowledgeReminders } =
+    useRogue();
 
   const [active, setActive] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -83,6 +114,19 @@ export function WorkoutSessionProvider({
   const [day, setDay] = useState<RoutineDay | null>(null);
   const [rows, setRows] = useState<Record<string, SetState[]>>({});
   const [result, setResult] = useState<LogResult | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, NoteDraft>>({});
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+
+  // Espejo de exerciseNotes para leerlas de forma sincrona al empezar (start no
+  // debe recrearse cada vez que cambian las notas, para no invalidar callbacks).
+  const notesRef = useRef(exerciseNotes);
+  notesRef.current = exerciseNotes;
+
+  // Espejo de `rows` para poder leer el estado actual de forma sincrona dentro
+  // de los handlers (los updaters de setRows corren despues, no valen para
+  // decidir efectos como arrancar el descanso).
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
   const [restUntil, setRestUntil] = useState<number | null>(null);
   const [restTotal, setRestTotal] = useState(0);
@@ -164,6 +208,30 @@ export function WorkoutSessionProvider({
     setStartedAt(Date.now());
     setFinalDurationSec(null);
     setNow(Date.now());
+    setNoteDrafts({});
+
+    // Recordatorios: para cada ejercicio del dia, la nota mas reciente sin ver
+    // con flag subir/bajar. notesRef viene ordenada ascendente por fecha.
+    const pending: Reminder[] = [];
+    for (const ex of d.exercises) {
+      let last: (typeof notesRef.current)[number] | undefined;
+      for (const n of notesRef.current) {
+        if (n.exerciseId === ex.exerciseId) last = n;
+      }
+      if (
+        last &&
+        !last.acknowledged &&
+        (last.flag === "subir" || last.flag === "bajar")
+      ) {
+        pending.push({
+          exerciseId: ex.exerciseId,
+          exerciseName: getExerciseInfo(ex.exerciseId).nombre,
+          flag: last.flag,
+          weightKg: last.weightKg,
+        });
+      }
+    }
+    setReminders(pending);
     setActive(true);
   }, [preferences.unit]);
 
@@ -180,7 +248,35 @@ export function WorkoutSessionProvider({
     setPhase("active");
     setStartedAt(null);
     setFinalDurationSec(null);
+    setNoteDrafts({});
+    setReminders([]);
   }, []);
+
+  const setExerciseFlag = useCallback(
+    (exId: string, flag: ExerciseNoteFlag) => {
+      setNoteDrafts((prev) => {
+        const current = prev[exId] ?? { flag: null, text: "" };
+        // Volver a pulsar el mismo flag lo quita.
+        const nextFlag = current.flag === flag ? null : flag;
+        return { ...prev, [exId]: { ...current, flag: nextFlag } };
+      });
+    },
+    [],
+  );
+
+  const setExerciseNote = useCallback((exId: string, text: string) => {
+    setNoteDrafts((prev) => {
+      const current = prev[exId] ?? { flag: null, text: "" };
+      return { ...prev, [exId]: { ...current, text } };
+    });
+  }, []);
+
+  const dismissReminders = useCallback(() => {
+    // acknowledgeReminders hace setState en RogueProvider: debe llamarse aqui
+    // (handler), nunca dentro de un updater de setState (corre en render).
+    acknowledgeReminders(reminders.map((r) => r.exerciseId));
+    setReminders([]);
+  }, [acknowledgeReminders, reminders]);
 
   const updateSet = useCallback(
     (exId: string, i: number, patch: Partial<SetState>) => {
@@ -196,13 +292,16 @@ export function WorkoutSessionProvider({
 
   const toggleDone = useCallback(
     (exId: string, i: number, restSec: number) => {
-      let willBeDone = false;
+      // El nuevo estado se calcula desde rowsRef (sincrono), no desde el updater
+      // de setRows: este corre despues, por lo que no sirve para decidir si hay
+      // que arrancar el descanso en el mismo tick.
+      const current = rowsRef.current[exId]?.[i];
+      if (!current) return;
+      const willBeDone = !current.done;
       setRows((prev) => {
-        const list = (prev[exId] ?? []).map((s, idx) => {
-          if (idx !== i) return s;
-          willBeDone = !s.done;
-          return { ...s, done: !s.done };
-        });
+        const list = (prev[exId] ?? []).map((s, idx) =>
+          idx === i ? { ...s, done: willBeDone } : s,
+        );
         return { ...prev, [exId]: list };
       });
       if (willBeDone) {
@@ -256,34 +355,59 @@ export function WorkoutSessionProvider({
 
   const skipRest = useCallback(() => setRestUntil(null), []);
 
+  // Ajusta el descanso en curso al vuelo (+/- segundos). Si al restar cae por
+  // debajo de cero, el descanso termina ya. restTotal se mueve en paralelo para
+  // que la barra de progreso siga siendo coherente.
+  const adjustRest = useCallback((deltaSec: number) => {
+    setRestUntil((prev) => {
+      if (prev === null) return prev;
+      return Math.max(Date.now(), prev + deltaSec * 1000);
+    });
+    setRestTotal((prev) => Math.max(0, prev + deltaSec));
+  }, []);
+
   const finish = useCallback(() => {
     if (!day) return;
     const sets: LoggedSet[] = [];
+    // Peso mas alto (en kg) hecho en cada ejercicio, para el mensaje del
+    // recordatorio ("la ultima vez: 80 kg").
+    const topWeightByEx: Record<string, number> = {};
     for (const ex of day.exercises) {
       const info = getExerciseInfo(ex.exerciseId);
       for (const s of rows[ex.exerciseId] ?? []) {
         if (!s.done) continue;
         const reps = Number(s.reps) || 0;
         if (reps <= 0) continue;
-        sets.push({
-          exerciseId: ex.exerciseId,
-          grupo: info.grupo,
-          weightKg: toKg(Number(s.weightKg) || 0, preferences.unit),
-          reps,
-        });
+        const weightKg = toKg(Number(s.weightKg) || 0, preferences.unit);
+        topWeightByEx[ex.exerciseId] = Math.max(
+          topWeightByEx[ex.exerciseId] ?? 0,
+          weightKg,
+        );
+        sets.push({ exerciseId: ex.exerciseId, grupo: info.grupo, weightKg, reps });
       }
     }
     if (sets.length === 0) return;
+
+    // Notas: solo las que tienen flag o texto. weightKg desde el mejor set hecho.
+    const notes: ExerciseNoteInput[] = Object.entries(noteDrafts)
+      .filter(([, d]) => d.flag !== null || d.text.trim() !== "")
+      .map(([exId, d]) => ({
+        exerciseId: exId,
+        flag: d.flag,
+        text: d.text.trim() || null,
+        weightKg: topWeightByEx[exId] ?? null,
+      }));
+
     const durationSec =
       startedAt !== null
         ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
         : undefined;
     setFinalDurationSec(durationSec ?? null);
-    setResult(logSession(day.label, sets, durationSec));
+    setResult(logSession(day.label, sets, durationSec, notes));
     setRestUntil(null);
     setMinimized(false);
     setPhase("done");
-  }, [day, rows, logSession, preferences.unit, startedAt]);
+  }, [day, rows, logSession, preferences.unit, startedAt, noteDrafts]);
 
   const { doneCount, totalCount } = useMemo(() => {
     const all = Object.values(rows).flat();
@@ -315,7 +439,13 @@ export function WorkoutSessionProvider({
     addSet,
     removeSet,
     replaceExercise,
+    noteDrafts,
+    setExerciseFlag,
+    setExerciseNote,
+    reminders,
+    dismissReminders,
     skipRest,
+    adjustRest,
     finish,
   };
 
