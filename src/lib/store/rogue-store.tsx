@@ -228,6 +228,7 @@ async function fetchRoutine(
     .from("routines")
     .select("id")
     .eq("user_id", userId)
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
   if (!routineRow) return null;
@@ -345,6 +346,31 @@ async function persistRoutineDays(
       })),
     );
   }
+}
+
+/** Devuelve el id de la (unica) rutina del usuario, creandola solo si no existe
+ *  ninguna. Consulta la BD antes de insertar para no duplicar cuando el ref
+ *  local todavia no esta fijado (carga en curso u onboarding re-ejecutado). */
+async function ensureRoutineId(
+  supabase: SupabaseClient,
+  userId: string,
+  name: string,
+): Promise<string | null> {
+  const { data: existing } = await supabase
+    .from("routines")
+    .select("id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (existing) return existing.id;
+
+  const { data: created } = await supabase
+    .from("routines")
+    .insert({ user_id: userId, name })
+    .select("id")
+    .single();
+  return created?.id ?? null;
 }
 
 async function insertWorkoutSession(
@@ -521,12 +547,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
 
         let routineId = routineIdRef.current;
         if (!routineId) {
-          const { data: routineRow } = await supabase
-            .from("routines")
-            .insert({ user_id: userId, name: DEMO_ROUTINE.name })
-            .select("id")
-            .single();
-          routineId = routineRow?.id ?? null;
+          routineId = await ensureRoutineId(supabase, userId, DEMO_ROUTINE.name);
           routineIdRef.current = routineId;
         }
         if (routineId) await persistRoutineDays(supabase, routineId, DEMO_ROUTINE.days);
@@ -717,12 +738,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
       (async () => {
         let routineId = routineIdRef.current;
         if (!routineId) {
-          const { data: routineRow } = await supabase
-            .from("routines")
-            .insert({ user_id: userId, name: "Mi rutina" })
-            .select("id")
-            .single();
-          routineId = routineRow?.id ?? null;
+          routineId = await ensureRoutineId(supabase, userId, "Mi rutina");
           routineIdRef.current = routineId;
         }
         if (routineId) await persistRoutineDays(supabase, routineId, days);
