@@ -158,7 +158,7 @@ export function WorkoutSessionProvider({
         tag: "rogue-rest-end",
       });
     }
-  }, []);
+  }, [preferences.notifyRestEnd]);
 
   // Cronometro del descanso (anclado a timestamp, se autocorrige en 2.º plano).
   useEffect(() => {

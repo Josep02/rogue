@@ -102,6 +102,7 @@ type MealsContextValue = {
   entriesForDay: (date: string) => MealEntry[];
   addEntry: (input: NewMealEntry) => void;
   updateEntryQuantity: (id: string, quantityG: number) => void;
+  updateEntry: (id: string, data: Partial<Omit<MealEntry, "id" | "date" | "mealType">>) => void;
   removeEntry: (id: string) => void;
   setGoals: (goals: NutritionGoals) => void;
 };
@@ -270,6 +271,35 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
     [supabase],
   );
 
+  const updateEntry = useCallback(
+    (id: string, data: Partial<Omit<MealEntry, "id" | "date" | "mealType">>) => {
+      setEntries((prev) =>
+        prev.map((e) => (e.id === id ? { ...e, ...data } : e)),
+      );
+      const userId = userIdRef.current;
+      if (userId) {
+        const payload: Record<string, string | number | null> = {};
+        if (data.name !== undefined) payload.name = data.name;
+        if (data.brand !== undefined) payload.brand = data.brand;
+        if (data.barcode !== undefined) payload.barcode = data.barcode;
+        if (data.quantityG !== undefined) payload.quantity_g = data.quantityG;
+        if (data.kcal100 !== undefined) payload.kcal_100 = data.kcal100;
+        if (data.protein100 !== undefined) payload.protein_100 = data.protein100;
+        if (data.fat100 !== undefined) payload.fat_100 = data.fat100;
+        if (data.carbs100 !== undefined) payload.carbs_100 = data.carbs100;
+
+        if (Object.keys(payload).length > 0) {
+          supabase
+            .from("meal_entries")
+            .update(payload)
+            .eq("id", id)
+            .then(() => {});
+        }
+      }
+    },
+    [supabase],
+  );
+
   const removeEntry = useCallback(
     (id: string) => {
       setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -309,6 +339,7 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
     entriesForDay,
     addEntry,
     updateEntryQuantity,
+    updateEntry,
     removeEntry,
     setGoals,
   };
