@@ -130,35 +130,40 @@ function AlimentoForm({
           </button>
         )}
       </div>
-      <div className="grid grid-cols-4 gap-2">
-        <label className="flex flex-col text-[10px] text-muted-foreground">
-          Kcal (100g)
-          <input type="number" value={kcal} onChange={e => setKcal(e.target.value)} className="mt-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none" />
+      <label className="flex flex-col">
+        <span className="text-sm font-medium">Nombre</span>
+        <input type="text" value={name} onChange={e => setName(e.target.value)} className="mt-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none" autoFocus />
+      </label>
+      <div className="grid grid-cols-2 gap-4">
+        <label className="flex flex-col">
+          <span className="text-sm font-medium">Calorías / 100g</span>
+          <input type="number" value={kcal} onChange={e => setKcal(e.target.value)} className="mt-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none" />
         </label>
-        <label className="flex flex-col text-[10px] text-muted-foreground">
-          Proteína (100g)
-          <input type="number" value={protein} onChange={e => setProtein(e.target.value)} className="mt-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none" />
+        <label className="flex flex-col">
+          <span className="text-sm font-medium">Proteína (g)</span>
+          <input type="number" value={protein} onChange={e => setProtein(e.target.value)} className="mt-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none" />
         </label>
-        <label className="flex flex-col text-[10px] text-muted-foreground">
-          Carbos (100g)
-          <input type="number" value={carbs} onChange={e => setCarbs(e.target.value)} className="mt-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none" />
+        <label className="flex flex-col">
+          <span className="text-sm font-medium">Carbohidratos (g)</span>
+          <input type="number" value={carbs} onChange={e => setCarbs(e.target.value)} className="mt-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none" />
         </label>
-        <label className="flex flex-col text-[10px] text-muted-foreground">
-          Grasas (100g)
-          <input type="number" value={fat} onChange={e => setFat(e.target.value)} className="mt-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none" />
+        <label className="flex flex-col">
+          <span className="text-sm font-medium">Grasas (g)</span>
+          <input type="number" value={fat} onChange={e => setFat(e.target.value)} className="mt-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground outline-none" />
         </label>
       </div>
-      <div className="flex items-center gap-2 mt-1">
-        <span className="text-[10px] text-muted-foreground mr-1">Nivel Salud:</span>
-        <button onClick={() => { setHealthScore("green"); setIsManualScore(true); }} className={cn("size-5 rounded-full bg-green-500", healthScore === "green" ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : "opacity-30")} />
-        <button onClick={() => { setHealthScore("yellow"); setIsManualScore(true); }} className={cn("size-5 rounded-full bg-yellow-400", healthScore === "yellow" ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : "opacity-30")} />
-        <button onClick={() => { setHealthScore("orange"); setIsManualScore(true); }} className={cn("size-5 rounded-full bg-orange-500", healthScore === "orange" ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : "opacity-30")} />
-        <button onClick={() => { setHealthScore("red"); setIsManualScore(true); }} className={cn("size-5 rounded-full bg-red-500", healthScore === "red" ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : "opacity-30")} />
-        {healthScore && <button onClick={() => { setHealthScore(undefined); setIsManualScore(true); }} className="ml-1 text-[10px] text-muted-foreground underline">Quitar</button>}
+      <div className="mt-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button type="button" aria-label="Verde" onClick={() => { setHealthScore("green"); setIsManualScore(true); }} className={cn("size-8 rounded-full bg-green-500", healthScore === "green" ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : "opacity-30")} />
+          <button type="button" aria-label="Amarillo" onClick={() => { setHealthScore("yellow"); setIsManualScore(true); }} className={cn("size-8 rounded-full bg-yellow-400", healthScore === "yellow" ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : "opacity-30")} />
+          <button type="button" aria-label="Naranja" onClick={() => { setHealthScore("orange"); setIsManualScore(true); }} className={cn("size-8 rounded-full bg-orange-500", healthScore === "orange" ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : "opacity-30")} />
+          <button type="button" aria-label="Rojo" onClick={() => { setHealthScore("red"); setIsManualScore(true); }} className={cn("size-8 rounded-full bg-red-500", healthScore === "red" ? "ring-2 ring-foreground ring-offset-1 ring-offset-background" : "opacity-30")} />
+          {healthScore && <button type="button" onClick={() => { setHealthScore(undefined); setIsManualScore(true); }} className="ml-2 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted">Quitar</button>}
+        </div>
       </div>
-      <div className="flex justify-end gap-2 mt-1">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground" disabled={loadingCode}>Cancelar</button>
-        <button onClick={handleSave} className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-semibold text-background" disabled={loadingCode}>Guardar</button>
+      <div className="mt-6 flex justify-end gap-3">
+        <button type="button" onClick={onCancel} className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground" disabled={loadingCode}>Cancelar</button>
+        <button type="button" onClick={handleSave} className="rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background" disabled={loadingCode}>Guardar</button>
       </div>
     </div>
   );
@@ -179,14 +184,14 @@ function PlatoForm({
   const { addAlimento } = usePantry();
   const [name, setName] = useState(initialData?.name || "");
   const [selectedFoods, setSelectedFoods] = useState<PlatoFood[]>(initialData?.foods || []);
-  const [search, setSearch] = useState("");
+  const [searchIng, setSearchIng] = useState("");
   const [isCreatingFood, setIsCreatingFood] = useState(false);
   const [healthScore, setHealthScore] = useState<"green" | "yellow" | "orange" | "red" | undefined>(initialData?.healthScore);
   const [isManualScore, setIsManualScore] = useState(!!initialData?.healthScore);
 
   const availableFoods = useMemo(() => {
-    return alimentos.filter(a => a.name.toLowerCase().includes(search.toLowerCase()));
-  }, [alimentos, search]);
+    return alimentos.filter(a => a.name.toLowerCase().includes(searchIng.toLowerCase()));
+  }, [alimentos, searchIng]);
 
   const { totalKcal, weight, totalP, totalC, totalF } = useMemo(() => {
     return selectedFoods.reduce((acc, f) => {
@@ -226,7 +231,8 @@ function PlatoForm({
     );
   };
 
-  const updateQuantity = (alimentoId: string, quantityG: number) => {
+  const updateQuantity = (alimentoId: string, quantityStr: string) => {
+    const quantityG = Number(quantityStr) || 0;
     setSelectedFoods(prev => 
       prev.map(f => f.alimentoId === alimentoId ? { ...f, quantityG } : f)
     );
@@ -254,8 +260,8 @@ function PlatoForm({
                   <input 
                     type="number" 
                     value={f.quantityG || ""} 
-                    onChange={e => updateQuantity(f.alimentoId, Number(e.target.value))}
-                    className="w-14 rounded-md border border-border bg-background px-1.5 py-0.5 text-xs text-right outline-none"
+                    onChange={e => updateQuantity(f.alimentoId, e.target.value)}
+                    className="w-16 rounded-xl border border-border bg-background px-2 py-1.5 text-sm text-right outline-none"
                   />
                   <span className="text-[10px] text-muted-foreground mr-1">g</span>
                   <X className="size-3.5 cursor-pointer text-muted-foreground hover:text-red-500" onClick={() => toggleFood(f.alimentoId)} />
@@ -271,10 +277,8 @@ function PlatoForm({
             <AlimentoForm 
               onSave={(a) => {
                 addAlimento(a);
-                // Can't automatically toggle here due to ID mismatch (it creates asynchronously in this simple mock), 
-                // but since it's local state, `addAlimento` generates Date.now(). Let's just reset the form.
                 setIsCreatingFood(false);
-                setSearch("");
+                setSearchIng("");
               }}
               onCancel={() => setIsCreatingFood(false)}
             />
@@ -284,11 +288,11 @@ function PlatoForm({
             <div className="relative">
               <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
               <input 
-                type="text" 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar ingrediente..." 
-                className="w-full rounded-lg border border-border bg-surface pl-8 pr-3 py-1.5 text-xs outline-none"
+                type="text"
+                placeholder="Buscar alimento por nombre..."
+                value={searchIng}
+                onChange={e => setSearchIng(e.target.value)}
+                className="w-full rounded-xl border border-border bg-surface pl-10 pr-4 py-2.5 text-sm outline-none"
               />
             </div>
             <div className="max-h-32 overflow-y-auto flex flex-col gap-1 mt-1">
@@ -302,7 +306,7 @@ function PlatoForm({
                   {selectedFoods.some(f => f.alimentoId === a.id) && <Check className="size-3 text-primary" />}
                 </div>
               ))}
-              {search && availableFoods.length === 0 && (
+              {searchIng && availableFoods.length === 0 && (
                 <div className="p-4 text-center text-xs text-muted-foreground">
                   <p>No se encontró el ingrediente.</p>
                   <button 
@@ -327,9 +331,9 @@ function PlatoForm({
         {healthScore && <button onClick={() => { setHealthScore(undefined); setIsManualScore(true); }} className="ml-1 text-[10px] text-muted-foreground underline">Quitar</button>}
       </div>
 
-      <div className="flex justify-end gap-2 mt-2">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">Cancelar</button>
-        <button onClick={handleSave} className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-semibold text-background">Guardar Plato</button>
+      <div className="mt-6 flex justify-end gap-3">
+        <button type="button" onClick={onCancel} className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">Cancelar</button>
+        <button type="button" onClick={handleSave} className="rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background">Guardar Plato</button>
       </div>
     </div>
   );
@@ -486,14 +490,14 @@ export function PantryModal({ open, onClose }: Props) {
                         <span>G: {alimento.fat}g</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => toggleFavoriteAlimento(alimento.id)} className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors">
-                        <Heart className="size-4" fill={alimento.isFavorite ? "currentColor" : "none"} color={alimento.isFavorite ? "rgb(239, 68, 68)" : "currentColor"} />
+                    <div className="flex gap-1">
+                      <button type="button" onClick={() => toggleFavoriteAlimento(alimento.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-red-500 transition-colors">
+                        <Heart className={cn("size-4", alimento.isFavorite && "fill-red-500 text-red-500")} />
                       </button>
-                      <button onClick={() => setEditingId(editingId === alimento.id ? null : alimento.id)} className="p-1.5 text-muted-foreground hover:text-foreground">
+                      <button type="button" onClick={() => setEditingId(editingId === alimento.id ? null : alimento.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-foreground">
                         <Pencil className="size-4" />
                       </button>
-                      <button onClick={() => deleteAlimento(alimento.id)} className="p-1.5 text-muted-foreground hover:text-red-500">
+                      <button type="button" onClick={() => deleteAlimento(alimento.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-red-500">
                         <Trash2 className="size-4" />
                       </button>
                     </div>
@@ -535,14 +539,14 @@ export function PantryModal({ open, onClose }: Props) {
                         })}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => toggleFavoritePlato(plato.id)} className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors">
-                        <Heart className="size-4" fill={plato.isFavorite ? "currentColor" : "none"} color={plato.isFavorite ? "rgb(239, 68, 68)" : "currentColor"} />
+                    <div className="flex gap-1">
+                      <button type="button" onClick={() => toggleFavoritePlato(plato.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-red-500 transition-colors">
+                        <Heart className={cn("size-4", plato.isFavorite && "fill-red-500 text-red-500")} />
                       </button>
-                      <button onClick={() => setEditingId(editingId === plato.id ? null : plato.id)} className="p-1.5 text-muted-foreground hover:text-foreground">
+                      <button type="button" onClick={() => setEditingId(editingId === plato.id ? null : plato.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-foreground">
                         <Pencil className="size-4" />
                       </button>
-                      <button onClick={() => deletePlato(plato.id)} className="p-1.5 text-muted-foreground hover:text-red-500">
+                      <button type="button" onClick={() => deletePlato(plato.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-red-500">
                         <Trash2 className="size-4" />
                       </button>
                     </div>

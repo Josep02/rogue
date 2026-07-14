@@ -345,12 +345,18 @@ function EntryRow({
   return (
     <div className={cn("overflow-hidden rounded-3xl border border-border bg-surface transition-opacity", !entry.eaten && "opacity-60")}>
       <div className="flex items-center gap-3 p-3">
-        <button onClick={handleToggleEaten} className="flex size-6 shrink-0 items-center justify-center rounded-full transition-colors">
-          {entry.eaten ? (
-            <CheckCircle2 className="size-5 text-green-500" />
-          ) : (
-            <Circle className="size-5 text-muted-foreground" />
+        <button
+          type="button"
+          aria-label="Marcar como comido"
+          onClick={handleToggleEaten}
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center rounded-xl border transition-colors active:scale-95",
+            entry.eaten
+              ? "border-foreground bg-accent text-accent-foreground"
+              : "border-border text-muted-foreground",
           )}
+        >
+          <Check className="size-5" />
         </button>
         <div className="flex-1 min-w-0">
           <p className="truncate text-sm font-semibold">{entry.name}</p>
@@ -362,7 +368,7 @@ function EntryRow({
         <button
           onClick={() => setEditing(v => !v)}
           className={cn(
-            "flex size-9 items-center justify-center rounded-full transition-colors",
+            "flex size-10 items-center justify-center rounded-xl transition-colors",
             editing ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
           )}
         >
@@ -370,7 +376,7 @@ function EntryRow({
         </button>
         <button
           onClick={() => onRemove(entry.id)}
-          className="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
+          className="flex size-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
         >
           <Trash2 className="size-4" />
         </button>
@@ -404,27 +410,26 @@ function EntryRow({
       )}
 
       {editing && isPlato && (
-        <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
-          {breakdown.map((b: any, i: number) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground flex-1 truncate">{b.name}</span>
-              <input
-                type="number"
-                value={draftBreakdown[i]}
-                step="1"
-                min="0"
-                onChange={e => setDraftBreakdown(prev => ({ ...prev, [i]: e.target.value }))}
-                onKeyDown={e => { if (e.key === "Enter") handleSavePlato(); if (e.key === "Escape") handleCancel(); }}
-                className="w-16 rounded-xl border border-border bg-background px-2 py-1 text-xs text-right outline-none"
-              />
-              <span className="text-xs text-muted-foreground w-4">g</span>
-            </div>
-          ))}
-          <div className="flex justify-end gap-2 mt-2">
-            <button onClick={handleCancel} className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-              Cancelar
+        <div className="flex flex-col gap-2 border-t border-border">
+          <div className="p-4 flex flex-col gap-2">
+            {breakdown.map((b: any, i: number) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground flex-1 truncate">{b.name}</span>
+                <input
+                  type="number"
+                  value={draftBreakdown[i] || ""}
+                  onChange={(e) => setDraftBreakdown(prev => ({ ...prev, [i]: e.target.value }))}
+                  className="w-16 rounded-xl border border-border bg-background px-2 py-1.5 text-sm text-right outline-none"
+                />
+                <span className="text-xs text-muted-foreground w-4">g</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex shrink-0 items-center gap-3 p-4 pt-0">
+            <button type="button" onClick={handleCancel} className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface hover:bg-muted transition-colors">
+              <X className="size-4 text-muted-foreground" />
             </button>
-            <button onClick={handleSavePlato} className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-semibold text-background">
+            <button type="button" onClick={handleSavePlato} className="flex-1 rounded-2xl bg-foreground py-3 text-sm font-semibold text-background">
               Guardar Plato
             </button>
           </div>

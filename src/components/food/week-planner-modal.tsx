@@ -87,7 +87,7 @@ export function WeekPlannerModal({ open, onClose, initialDate }: Props) {
 
             {/* Week nav */}
             <div className="flex items-center gap-2 px-5 pb-3">
-              <button onClick={prevWeek} className="flex size-8 items-center justify-center rounded-full bg-surface hover:bg-muted transition-colors">
+              <button onClick={prevWeek} className="flex size-10 items-center justify-center rounded-full bg-surface hover:bg-muted transition-colors">
                 <ChevronLeft className="size-4" />
               </button>
               <div className="flex flex-1 gap-1">
@@ -98,7 +98,7 @@ export function WeekPlannerModal({ open, onClose, initialDate }: Props) {
                   </div>
                 ))}
               </div>
-              <button onClick={nextWeek} className="flex size-8 items-center justify-center rounded-full bg-surface hover:bg-muted transition-colors">
+              <button onClick={nextWeek} className="flex size-10 items-center justify-center rounded-full bg-surface hover:bg-muted transition-colors">
                 <ChevronRight className="size-4" />
               </button>
             </div>
