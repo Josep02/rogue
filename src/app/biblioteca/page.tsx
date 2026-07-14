@@ -12,14 +12,12 @@ import { createClient } from "@/lib/supabase/client";
 import {
   getCurrentUserId,
   listFavoriteIds,
-  listRecentIds,
 } from "@/lib/supabase/exercise-interactions";
 
 export default function BibliotecaPage() {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<ExerciseFilterValue>({});
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  const [recentIds, setRecentIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -27,13 +25,11 @@ export default function BibliotecaPage() {
       const supabase = createClient();
       const userId = await getCurrentUserId(supabase);
       if (!userId || !active) return;
-      const [favIds, recentIds] = await Promise.all([
+      const [favIds] = await Promise.all([
         listFavoriteIds(supabase, userId),
-        listRecentIds(supabase, userId),
       ]);
       if (!active) return;
       setFavoriteIds(new Set(favIds));
-      setRecentIds(new Set(recentIds));
     })();
     return () => {
       active = false;
@@ -45,13 +41,17 @@ export default function BibliotecaPage() {
     [query, filters],
   );
 
-  // Favoritos primero, luego recientes, luego el resto. El sort es estable,
+  // Favoritos primero, luego el resto. El sort es estable,
   // asi que dentro de cada grupo se mantiene el orden del dataset.
   const sorted = useMemo(() => {
-    const rank = (id: string) =>
-      favoriteIds.has(id) ? 0 : recentIds.has(id) ? 1 : 2;
-    return [...results].sort((a, b) => rank(a.id) - rank(b.id));
-  }, [results, favoriteIds, recentIds]);
+    return [...results].sort((a, b) => {
+      const aFav = favoriteIds.has(a.id);
+      const bFav = favoriteIds.has(b.id);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return 0;
+    });
+  }, [results, favoriteIds]);
 
   return (
     <div className="flex flex-col gap-4 pt-2 pb-4">
@@ -98,9 +98,7 @@ export default function BibliotecaPage() {
               badge={
                 favoriteIds.has(exercise.id)
                   ? "favorito"
-                  : recentIds.has(exercise.id)
-                    ? "reciente"
-                    : undefined
+                  : undefined
               }
             />
           ))}

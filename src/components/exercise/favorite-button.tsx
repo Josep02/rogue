@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
   getCurrentUserId,
   isFavoriteExercise,
-  recordExerciseView,
   setFavoriteExercise,
 } from "@/lib/supabase/exercise-interactions";
 import { cn } from "@/lib/utils";
@@ -25,7 +24,6 @@ export function FavoriteButton({ exerciseId }: { exerciseId: string }) {
       const uid = await getCurrentUserId(supabase);
       if (!uid || !active) return;
       setUserId(uid);
-      recordExerciseView(supabase, uid, exerciseId).catch(() => {});
       const fav = await isFavoriteExercise(supabase, uid, exerciseId);
       if (active) setFavorite(fav);
     })();

@@ -36,6 +36,7 @@ export type MealEntry = {
   protein100: number | null;
   fat100: number | null;
   carbs100: number | null;
+  eaten: boolean;
 };
 
 export type NutritionGoals = {
@@ -121,6 +122,7 @@ type MealRow = {
   protein_100: number | null;
   fat_100: number | null;
   carbs_100: number | null;
+  eaten: boolean | null;
 };
 
 function rowToEntry(r: MealRow): MealEntry {
@@ -137,6 +139,7 @@ function rowToEntry(r: MealRow): MealEntry {
     protein100: num(r.protein_100),
     fat100: num(r.fat_100),
     carbs100: num(r.carbs_100),
+    eaten: r.eaten ?? false,
   };
 }
 
@@ -147,7 +150,7 @@ async function fetchEntries(
   const { data } = await supabase
     .from("meal_entries")
     .select(
-      "id, date, meal_type, name, brand, barcode, quantity_g, kcal_100, protein_100, fat_100, carbs_100",
+      "id, date, meal_type, name, brand, barcode, quantity_g, kcal_100, protein_100, fat_100, carbs_100, eaten",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
@@ -247,6 +250,7 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
             protein_100: entry.protein100,
             fat_100: entry.fat100,
             carbs_100: entry.carbs100,
+            eaten: entry.eaten,
           })
           .then(() => {});
       }
@@ -278,7 +282,7 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
       );
       const userId = userIdRef.current;
       if (userId) {
-        const payload: Record<string, string | number | null> = {};
+        const payload: Record<string, string | number | boolean | null> = {};
         if (data.name !== undefined) payload.name = data.name;
         if (data.brand !== undefined) payload.brand = data.brand;
         if (data.barcode !== undefined) payload.barcode = data.barcode;
@@ -287,6 +291,7 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
         if (data.protein100 !== undefined) payload.protein_100 = data.protein100;
         if (data.fat100 !== undefined) payload.fat_100 = data.fat100;
         if (data.carbs100 !== undefined) payload.carbs_100 = data.carbs100;
+        if (data.eaten !== undefined) payload.eaten = data.eaten;
 
         if (Object.keys(payload).length > 0) {
           supabase

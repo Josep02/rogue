@@ -283,24 +283,9 @@ create table if not exists exercise_favorites (
   primary key (user_id, exercise_id)
 );
 
--- "Recientes" = ultima vez que el usuario abrio la ficha de un ejercicio.
--- Se hace upsert desde el cliente cada vez que entra en /biblioteca/[id].
-create table if not exists exercise_recent_views (
-  user_id uuid not null references auth.users (id) on delete cascade,
-  exercise_id text not null,
-  viewed_at timestamptz not null default now(),
-  primary key (user_id, exercise_id)
-);
-
-create index if not exists exercise_recent_views_user_idx on exercise_recent_views (user_id, viewed_at desc);
-
 alter table exercise_favorites enable row level security;
-alter table exercise_recent_views enable row level security;
 
 create policy "el usuario gestiona sus favoritos" on exercise_favorites
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "el usuario gestiona sus vistas recientes" on exercise_recent_views
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ============================================================
@@ -346,6 +331,7 @@ create table if not exists meal_entries (
   protein_100 numeric,
   fat_100 numeric,
   carbs_100 numeric,
+  eaten boolean not null default false,
   created_at timestamptz not null default now()
 );
 

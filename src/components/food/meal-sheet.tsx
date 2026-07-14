@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Trash2, Search, Pencil, Check } from "lucide-react";
+import { CheckCircle2, Circle, X, Plus, Trash2, Search, Pencil, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePantry } from "@/lib/store/pantry-store";
 import { useMeals, type MealType, type MealEntry, entryMacros, sumMacros, dayKey } from "@/lib/store/meals-store";
@@ -60,6 +60,7 @@ export function MealSheet({ open, onClose, mealType, mealLabel, date }: Props) {
     addEntry({
       date, mealType, name: a.name, brand: null, barcode: null,
       quantityG: 100, kcal100: a.kcal, protein100: a.protein, fat100: a.fat, carbs100: a.carbs,
+      eaten: false,
     });
     setView("list"); setSearch("");
   };
@@ -94,6 +95,7 @@ export function MealSheet({ open, onClose, mealType, mealLabel, date }: Props) {
       protein100: totalP,
       fat100: totalF,
       carbs100: totalC,
+      eaten: false,
     });
     setView("list"); setSearch("");
   };
@@ -336,9 +338,20 @@ function EntryRow({
 
   const totalWeightStr = isPlato ? Math.round(breakdown.reduce((acc: number, b: any) => acc + b.quantityG, 0)) + "g" : `${entry.quantityG}g`;
 
+  const handleToggleEaten = () => {
+    onUpdateEntry(entry.id, { eaten: !entry.eaten });
+  };
+
   return (
-    <div className="overflow-hidden rounded-3xl border border-border bg-surface">
+    <div className={cn("overflow-hidden rounded-3xl border border-border bg-surface transition-opacity", !entry.eaten && "opacity-60")}>
       <div className="flex items-center gap-3 p-3">
+        <button onClick={handleToggleEaten} className="flex size-6 shrink-0 items-center justify-center rounded-full transition-colors">
+          {entry.eaten ? (
+            <CheckCircle2 className="size-5 text-green-500" />
+          ) : (
+            <Circle className="size-5 text-muted-foreground" />
+          )}
+        </button>
         <div className="flex-1 min-w-0">
           <p className="truncate text-sm font-semibold">{entry.name}</p>
           <p className="text-xs text-muted-foreground">

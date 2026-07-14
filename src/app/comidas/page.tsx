@@ -71,7 +71,7 @@ export default function ComidasPage() {
 
   const week = useMemo(() => buildWeek(selected), [selected]);
   const dayEntries = entriesForDay(selected);
-  const totals = useMemo(() => sumMacros(dayEntries), [dayEntries]);
+  const totals = useMemo(() => sumMacros(dayEntries.filter(e => e.eaten)), [dayEntries]);
 
   const kcalPct = goals.kcal > 0 ? Math.min(100, (totals.kcal / goals.kcal) * 100) : 0;
   const kcalLeft = Math.max(0, Math.round(goals.kcal - totals.kcal));
