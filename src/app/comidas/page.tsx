@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { ChevronRight, Coffee, Cookie, Moon, Utensils } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
-import { MealDetailSheet } from "@/components/food/meal-detail-sheet";
 import {
   dayKey,
   MEAL_TYPES,
@@ -60,7 +59,6 @@ export default function ComidasPage() {
   const { goals, entriesForDay } = useMeals();
 
   const [selected, setSelected] = useState(() => dayKey());
-  const [openMeal, setOpenMeal] = useState<MealType | null>(null);
 
   const week = useMemo(() => buildWeek(selected), [selected]);
   const dayEntries = entriesForDay(selected);
@@ -81,10 +79,8 @@ export default function ComidasPage() {
       {/* Selector semanal */}
       <div className="flex gap-1.5">
         {week.map((d) => (
-          <button
+          <div
             key={d.key}
-            type="button"
-            onClick={() => setSelected(d.key)}
             className={cn(
               "flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 transition-colors",
               d.isSelected
@@ -101,7 +97,7 @@ export default function ComidasPage() {
             >
               {d.dayNum}
             </span>
-          </button>
+          </div>
         ))}
       </div>
 
@@ -159,10 +155,7 @@ export default function ComidasPage() {
           <PastelCard
             key={type}
             variant={meta.variant}
-            onClick={() => setOpenMeal(type)}
-            role="button"
-            tabIndex={0}
-            className="cursor-pointer rounded-3xl transition-transform active:scale-[0.99]"
+            className="rounded-3xl transition-transform"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -184,14 +177,6 @@ export default function ComidasPage() {
           </PastelCard>
         );
       })}
-
-      {openMeal && (
-        <MealDetailSheet
-          meal={openMeal}
-          date={selected}
-          onClose={() => setOpenMeal(null)}
-        />
-      )}
     </div>
   );
 }
