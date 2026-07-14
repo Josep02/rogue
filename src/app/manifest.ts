@@ -9,10 +9,10 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    display_override: ["standalone", "minimal-ui"],
+    display_override: ["standalone"],
     orientation: "portrait",
-    background_color: "#0c0c0e",
-    theme_color: "#0c0c0e",
+    background_color: "#f6f6f8",
+    theme_color: "#f6f6f8",
     lang: "es",
     categories: ["health", "fitness", "sports"],
     icons: [
