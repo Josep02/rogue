@@ -25,6 +25,8 @@ import {
 } from "@/lib/rank-engine";
 import { DEMO_ROUTINE } from "@/data/routine.demo";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllPages } from "@/lib/supabase/fetch-all";
+import { syncWrite } from "@/lib/supabase/sync";
 import type {
   ExerciseNote,
   ExerciseNoteInput,
@@ -220,33 +222,49 @@ function toProfileRowPatch(
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
+async function fetchProfile(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<ProfileRow | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 async function fetchRoutine(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<{ routineId: string; days: RoutineDay[] } | null> {
-  const { data: routineRow } = await supabase
+  const { data: routineRow, error: routineError } = await supabase
     .from("routines")
     .select("id")
     .eq("user_id", userId)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+  if (routineError) throw routineError;
   if (!routineRow) return null;
 
-  const { data: dayRows } = await supabase
+  const { data: dayRows, error: daysError } = await supabase
     .from("routine_days")
     .select("id, label, focus, position, weekdays")
     .eq("routine_id", routineRow.id)
     .order("position");
+  if (daysError) throw daysError;
   const days = dayRows ?? [];
   if (days.length === 0) return { routineId: routineRow.id, days: [] };
 
   const dayIds = days.map((d) => d.id);
-  const { data: exRows } = await supabase
+  const { data: exRows, error: exError } = await supabase
     .from("routine_exercises")
     .select("routine_day_id, exercise_id, position, sets, reps, rest_sec, suggested_kg")
     .in("routine_day_id", dayIds)
     .order("position");
+  if (exError) throw exError;
 
   const exByDay = new Map<string, RoutineExercise[]>();
   for (const ex of exRows ?? []) {
@@ -273,55 +291,72 @@ async function fetchRoutine(
   };
 }
 
+type SessionRow = {
+  id: string;
+  day_label: string;
+  date: string;
+  duration_sec: number | null;
+  workout_sets: {
+    exercise_id: string;
+    categoria: string;
+    weight_kg: number;
+    reps: number;
+    position: number;
+  }[];
+};
+
 async function fetchSessions(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<WorkoutSession[]> {
-  const { data: sessionRows } = await supabase
-    .from("workout_sessions")
-    .select("id, day_label, date, duration_sec")
-    .eq("user_id", userId)
-    .order("date", { ascending: true });
-  if (!sessionRows || sessionRows.length === 0) return [];
+  // Sets embebidos en la misma consulta (un .in() con cientos de ids de
+  // sesion acababa generando URLs enormes) y paginado con .range() para que
+  // el historial no se trunque en las 1000 filas por defecto de PostgREST.
+  const rows = await fetchAllPages<SessionRow>(async (from, to) => {
+    const { data, error } = await supabase
+      .from("workout_sessions")
+      .select(
+        "id, day_label, date, duration_sec, workout_sets (exercise_id, categoria, weight_kg, reps, position)",
+      )
+      .eq("user_id", userId)
+      .order("date", { ascending: true })
+      .order("id", { ascending: true })
+      .order("position", { referencedTable: "workout_sets" })
+      .range(from, to);
+    if (error) throw error;
+    return (data ?? []) as SessionRow[];
+  });
 
-  const ids = sessionRows.map((s) => s.id);
-  const { data: setRows } = await supabase
-    .from("workout_sets")
-    .select("session_id, exercise_id, categoria, weight_kg, reps, position")
-    .in("session_id", ids)
-    .order("position");
-
-  const setsBySession = new Map<string, LoggedSet[]>();
-  for (const s of setRows ?? []) {
-    const list = setsBySession.get(s.session_id) ?? [];
-    list.push({
-      exerciseId: s.exercise_id,
-      grupo: s.categoria as ExerciseCategory,
-      weightKg: Number(s.weight_kg),
-      reps: s.reps,
-    });
-    setsBySession.set(s.session_id, list);
-  }
-
-  return sessionRows.map((s) => ({
+  return rows.map((s) => ({
     id: s.id,
     dateISO: s.date,
     dayLabel: s.day_label,
-    sets: setsBySession.get(s.id) ?? [],
+    sets: s.workout_sets.map((set) => ({
+      exerciseId: set.exercise_id,
+      grupo: set.categoria as ExerciseCategory,
+      weightKg: Number(set.weight_kg),
+      reps: set.reps,
+    })),
     durationSec: s.duration_sec ?? undefined,
   }));
 }
 
-/** Inserta dias + ejercicios de una rutina existente (borra los anteriores). */
+/** Inserta dias + ejercicios de una rutina existente (borra los anteriores).
+ *  Lanza al primer error para que syncWrite reintente; como empieza borrando
+ *  los dias de la rutina, repetirla desde cero es seguro (idempotente). */
 async function persistRoutineDays(
   supabase: SupabaseClient,
   routineId: string,
   days: RoutineDay[],
 ) {
-  await supabase.from("routine_days").delete().eq("routine_id", routineId);
+  const { error: deleteError } = await supabase
+    .from("routine_days")
+    .delete()
+    .eq("routine_id", routineId);
+  if (deleteError) throw deleteError;
   for (let i = 0; i < days.length; i++) {
     const day = days[i];
-    const { data: dayRow } = await supabase
+    const { data: dayRow, error: dayError } = await supabase
       .from("routine_days")
       .insert({
         routine_id: routineId,
@@ -332,9 +367,9 @@ async function persistRoutineDays(
       })
       .select("id")
       .single();
-    if (!dayRow) continue;
+    if (dayError) throw dayError;
     if (day.exercises.length === 0) continue;
-    await supabase.from("routine_exercises").insert(
+    const { error: exercisesError } = await supabase.from("routine_exercises").insert(
       day.exercises.map((ex, j) => ({
         routine_day_id: dayRow.id,
         exercise_id: ex.exerciseId,
@@ -345,6 +380,7 @@ async function persistRoutineDays(
         suggested_kg: ex.suggestedKg,
       })),
     );
+    if (exercisesError) throw exercisesError;
   }
 }
 
@@ -355,38 +391,48 @@ async function ensureRoutineId(
   supabase: SupabaseClient,
   userId: string,
   name: string,
-): Promise<string | null> {
-  const { data: existing } = await supabase
+): Promise<string> {
+  const { data: existing, error: selectError } = await supabase
     .from("routines")
     .select("id")
     .eq("user_id", userId)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+  if (selectError) throw selectError;
   if (existing) return existing.id;
 
-  const { data: created } = await supabase
+  const { data: created, error: insertError } = await supabase
     .from("routines")
     .insert({ user_id: userId, name })
     .select("id")
     .single();
-  return created?.id ?? null;
+  if (insertError) throw insertError;
+  return created.id;
 }
 
+/** Idempotente (upsert + delete/insert de sets): un reintento tras un fallo
+ *  a medias no duplica ni la sesion ni sus series. */
 async function insertWorkoutSession(
   supabase: SupabaseClient,
   userId: string,
   session: WorkoutSession,
 ) {
-  await supabase.from("workout_sessions").insert({
+  const { error: sessionError } = await supabase.from("workout_sessions").upsert({
     id: session.id,
     user_id: userId,
     day_label: session.dayLabel,
     date: session.dateISO,
     duration_sec: session.durationSec ?? null,
   });
+  if (sessionError) throw sessionError;
+  const { error: clearError } = await supabase
+    .from("workout_sets")
+    .delete()
+    .eq("session_id", session.id);
+  if (clearError) throw clearError;
   if (session.sets.length === 0) return;
-  await supabase.from("workout_sets").insert(
+  const { error: setsError } = await supabase.from("workout_sets").insert(
     session.sets.map((set, i) => ({
       session_id: session.id,
       exercise_id: set.exerciseId,
@@ -396,18 +442,36 @@ async function insertWorkoutSession(
       position: i,
     })),
   );
+  if (setsError) throw setsError;
 }
+
+type ExerciseNoteRow = {
+  id: string;
+  session_id: string;
+  exercise_id: string;
+  flag: string | null;
+  note: string | null;
+  weight_kg: number | null;
+  acknowledged: boolean;
+  created_at: string;
+};
 
 async function fetchExerciseNotes(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<ExerciseNote[]> {
-  const { data } = await supabase
-    .from("exercise_notes")
-    .select("id, session_id, exercise_id, flag, note, weight_kg, acknowledged, created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true });
-  return (data ?? []).map((n) => ({
+  const rows = await fetchAllPages<ExerciseNoteRow>(async (from, to) => {
+    const { data, error } = await supabase
+      .from("exercise_notes")
+      .select("id, session_id, exercise_id, flag, note, weight_kg, acknowledged, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    return data ?? [];
+  });
+  return rows.map((n) => ({
     id: n.id,
     sessionId: n.session_id,
     exerciseId: n.exercise_id,
@@ -425,7 +489,8 @@ async function insertExerciseNotes(
   notes: ExerciseNote[],
 ) {
   if (notes.length === 0) return;
-  await supabase.from("exercise_notes").insert(
+  // Upsert por el id generado en cliente: reintentable sin duplicar.
+  const { error } = await supabase.from("exercise_notes").upsert(
     notes.map((n) => ({
       id: n.id,
       user_id: userId,
@@ -438,6 +503,7 @@ async function insertExerciseNotes(
       created_at: n.dateISO,
     })),
   );
+  if (error) throw error;
 }
 
 export function RogueProvider({ children }: { children: React.ReactNode }) {
@@ -447,6 +513,12 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<RogueState>(DEFAULT_STATE);
   const [hydrated, setHydrated] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  // La carga inicial fallo (sin conexion, Supabase caido...). Se bloquea la
+  // app con una pantalla de reintento: seguir con el estado por defecto haria
+  // que OnboardingGate mandase a un usuario existente a re-hacer el
+  // onboarding (y machacase su rutina al completarlo).
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const userIdRef = useRef<string | null>(null);
   const routineIdRef = useRef<string | null>(null);
 
@@ -480,13 +552,23 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const [{ data: profileRow }, routine, sessions, exerciseNotes] =
-        await Promise.all([
-          supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+      let profileRow: ProfileRow | null;
+      let routine: Awaited<ReturnType<typeof fetchRoutine>>;
+      let sessions: WorkoutSession[];
+      let exerciseNotes: ExerciseNote[];
+      try {
+        [profileRow, routine, sessions, exerciseNotes] = await Promise.all([
+          fetchProfile(supabase, user.id),
           fetchRoutine(supabase, user.id),
           fetchSessions(supabase, user.id),
           fetchExerciseNotes(supabase, user.id),
         ]);
+      } catch (err) {
+        if (!active) return;
+        console.error("No se pudieron cargar los datos del usuario:", err);
+        setLoadError(true);
+        return;
+      }
       // No marcar userIdRef hasta que sepamos que este efecto sigue vigente:
       // si se aborto (p.ej. un cambio de pathname a mitad de la carga), un
       // efecto posterior no debe pensar que este usuario "ya estaba cargado"
@@ -496,6 +578,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
       userIdRef.current = user.id;
       routineIdRef.current = routine?.routineId ?? null;
 
+      setLoadError(false);
       setAuthenticated(true);
       setState({
         profile: profileRow ? rowToProfile(profileRow) : DEFAULT_PROFILE,
@@ -525,8 +608,9 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
     // Se re-comprueba la sesion en cada cambio de ruta: el login/logout ocurre
     // via Server Actions (redirect), y el cliente de supabase-js no se entera
     // solo -- las cookies cambian pero este efecto no se re-ejecuta sin esto.
+    // loadAttempt fuerza el reintento manual desde la pantalla de error.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, loadAttempt]);
 
   const completeOnboarding = useCallback(
     (data: Partial<Profile>) => {
@@ -539,19 +623,20 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
 
       const userId = userIdRef.current;
       if (!userId) return;
-      (async () => {
-        await supabase
+      syncWrite("el perfil", async () => {
+        const { error } = await supabase
           .from("profiles")
           .update(toProfileRowPatch(profile))
           .eq("user_id", userId);
+        if (error) throw error;
 
         let routineId = routineIdRef.current;
         if (!routineId) {
           routineId = await ensureRoutineId(supabase, userId, DEMO_ROUTINE.name);
           routineIdRef.current = routineId;
         }
-        if (routineId) await persistRoutineDays(supabase, routineId, DEMO_ROUTINE.days);
-      })();
+        await persistRoutineDays(supabase, routineId, DEMO_ROUTINE.days);
+      });
     },
     [supabase, state.profile],
   );
@@ -561,7 +646,13 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
       setState((prev) => ({ ...prev, profile: { ...prev.profile, ...patch } }));
       const userId = userIdRef.current;
       if (!userId) return;
-      supabase.from("profiles").update(toProfileRowPatch(patch)).eq("user_id", userId).then();
+      syncWrite("el perfil", async () => {
+        const { error } = await supabase
+          .from("profiles")
+          .update(toProfileRowPatch(patch))
+          .eq("user_id", userId);
+        if (error) throw error;
+      });
     },
     [supabase],
   );
@@ -571,7 +662,13 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
       setState((prev) => ({ ...prev, preferences: { ...prev.preferences, ...patch } }));
       const userId = userIdRef.current;
       if (!userId) return;
-      supabase.from("profiles").update(toProfileRowPatch(patch)).eq("user_id", userId).then();
+      syncWrite("las preferencias", async () => {
+        const { error } = await supabase
+          .from("profiles")
+          .update(toProfileRowPatch(patch))
+          .eq("user_id", userId);
+        if (error) throw error;
+      });
     },
     [supabase],
   );
@@ -683,10 +780,11 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
 
       const userId = userIdRef.current;
       if (userId) {
-        insertWorkoutSession(supabase, userId, session)
+        syncWrite("el entreno", async () => {
+          await insertWorkoutSession(supabase, userId, session);
           // Las notas se insertan despues: dependen de la fila de sesion (FK).
-          .then(() => insertExerciseNotes(supabase, userId, noteRows))
-          .catch(() => {});
+          await insertExerciseNotes(supabase, userId, noteRows);
+        });
       }
 
       return { session, prs, rankChanges };
@@ -716,14 +814,16 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
 
       const userId = userIdRef.current;
       if (userId) {
-        supabase
-          .from("exercise_notes")
-          .update({ acknowledged: true })
-          .in(
-            "id",
-            affected.map((n) => n.id),
-          )
-          .then(() => {});
+        syncWrite("los recordatorios", async () => {
+          const { error } = await supabase
+            .from("exercise_notes")
+            .update({ acknowledged: true })
+            .in(
+              "id",
+              affected.map((n) => n.id),
+            );
+          if (error) throw error;
+        });
       }
     },
     [state.exerciseNotes, supabase],
@@ -735,14 +835,14 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
 
       const userId = userIdRef.current;
       if (!userId) return;
-      (async () => {
+      syncWrite("la rutina", async () => {
         let routineId = routineIdRef.current;
         if (!routineId) {
           routineId = await ensureRoutineId(supabase, userId, "Mi rutina");
           routineIdRef.current = routineId;
         }
-        if (routineId) await persistRoutineDays(supabase, routineId, days);
-      })();
+        await persistRoutineDays(supabase, routineId, days);
+      });
     },
     [supabase],
   );
@@ -757,14 +857,25 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
     const userId = userIdRef.current;
     const routineId = routineIdRef.current;
     if (!userId) return;
-    (async () => {
-      await supabase.from("workout_sessions").delete().eq("user_id", userId);
-      if (routineId) await supabase.from("routine_days").delete().eq("routine_id", routineId);
-      await supabase
+    syncWrite("el reinicio de datos", async () => {
+      const { error: sessionsError } = await supabase
+        .from("workout_sessions")
+        .delete()
+        .eq("user_id", userId);
+      if (sessionsError) throw sessionsError;
+      if (routineId) {
+        const { error: daysError } = await supabase
+          .from("routine_days")
+          .delete()
+          .eq("routine_id", routineId);
+        if (daysError) throw daysError;
+      }
+      const { error: profileError } = await supabase
         .from("profiles")
         .update(toProfileRowPatch({ ...DEFAULT_PROFILE, ...DEFAULT_PREFERENCES }))
         .eq("user_id", userId);
-    })();
+      if (profileError) throw profileError;
+    });
   }, [supabase, state.profile.username]);
 
   const muscleRanks = useMemo(
@@ -809,7 +920,30 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
     resetAll,
   };
 
-  return <RogueContext.Provider value={value}>{children}</RogueContext.Provider>;
+  return (
+    <RogueContext.Provider value={value}>
+      {loadError ? (
+        <div className="flex min-h-dvh flex-col items-center justify-center gap-2 bg-background px-8 text-center">
+          <p className="text-base font-semibold">No se pudieron cargar tus datos</p>
+          <p className="text-sm text-muted-foreground">
+            Comprueba tu conexion e intentalo de nuevo.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoadError(false);
+              setLoadAttempt((n) => n + 1);
+            }}
+            className="mt-3 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : (
+        children
+      )}
+    </RogueContext.Provider>
+  );
 }
 
 export function useRogue(): RogueContextValue {

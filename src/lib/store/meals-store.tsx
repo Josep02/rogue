@@ -10,6 +10,8 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllPages } from "@/lib/supabase/fetch-all";
+import { syncWrite } from "@/lib/supabase/sync";
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
@@ -147,25 +149,34 @@ async function fetchEntries(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<MealEntry[]> {
-  const { data } = await supabase
-    .from("meal_entries")
-    .select(
-      "id, date, meal_type, name, brand, barcode, quantity_g, kcal_100, protein_100, fat_100, carbs_100, eaten",
-    )
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true });
-  return (data ?? []).map((r) => rowToEntry(r as MealRow));
+  // Paginado con .range(): un diario activo supera las 1000 filas (limite
+  // silencioso por defecto de PostgREST) en pocos meses.
+  const rows = await fetchAllPages<MealRow>(async (from, to) => {
+    const { data, error } = await supabase
+      .from("meal_entries")
+      .select(
+        "id, date, meal_type, name, brand, barcode, quantity_g, kcal_100, protein_100, fat_100, carbs_100, eaten",
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    return (data ?? []) as MealRow[];
+  });
+  return rows.map(rowToEntry);
 }
 
 async function fetchGoals(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<NutritionGoals> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("nutrition_goals")
     .select("kcal_target, protein_target, fat_target, carbs_target")
     .eq("user_id", userId)
     .maybeSingle();
+  if (error) throw error;
   if (!data) return DEFAULT_GOALS;
   return {
     kcal: data.kcal_target,
@@ -208,10 +219,20 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
         setHydrated(true);
         return;
       }
-      const [loadedEntries, loadedGoals] = await Promise.all([
-        fetchEntries(supabase, user.id),
-        fetchGoals(supabase, user.id),
-      ]);
+      let loadedEntries: MealEntry[];
+      let loadedGoals: NutritionGoals;
+      try {
+        [loadedEntries, loadedGoals] = await Promise.all([
+          fetchEntries(supabase, user.id),
+          fetchGoals(supabase, user.id),
+        ]);
+      } catch (err) {
+        // El diario queda vacio hasta la proxima navegacion (userIdRef no se
+        // fija, asi que se reintentara); no bloquea el resto de la app.
+        console.error("No se pudo cargar el diario de comidas:", err);
+        if (active) setHydrated(true);
+        return;
+      }
       if (!active) return;
       userIdRef.current = user.id;
       setEntries(loadedEntries);
@@ -235,9 +256,9 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
 
       const userId = userIdRef.current;
       if (userId) {
-        supabase
-          .from("meal_entries")
-          .insert({
+        syncWrite("la comida", async () => {
+          // Upsert por el id generado en cliente: reintentable sin duplicar.
+          const { error } = await supabase.from("meal_entries").upsert({
             id: entry.id,
             user_id: userId,
             date: entry.date,
@@ -251,8 +272,9 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
             fat_100: entry.fat100,
             carbs_100: entry.carbs100,
             eaten: entry.eaten,
-          })
-          .then(() => {});
+          });
+          if (error) throw error;
+        });
       }
     },
     [supabase],
@@ -265,11 +287,13 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
       );
       const userId = userIdRef.current;
       if (userId) {
-        supabase
-          .from("meal_entries")
-          .update({ quantity_g: quantityG })
-          .eq("id", id)
-          .then(() => {});
+        syncWrite("la comida", async () => {
+          const { error } = await supabase
+            .from("meal_entries")
+            .update({ quantity_g: quantityG })
+            .eq("id", id);
+          if (error) throw error;
+        });
       }
     },
     [supabase],
@@ -294,11 +318,13 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
         if (data.eaten !== undefined) payload.eaten = data.eaten;
 
         if (Object.keys(payload).length > 0) {
-          supabase
-            .from("meal_entries")
-            .update(payload)
-            .eq("id", id)
-            .then(() => {});
+          syncWrite("la comida", async () => {
+            const { error } = await supabase
+              .from("meal_entries")
+              .update(payload)
+              .eq("id", id);
+            if (error) throw error;
+          });
         }
       }
     },
@@ -310,7 +336,13 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
       setEntries((prev) => prev.filter((e) => e.id !== id));
       const userId = userIdRef.current;
       if (userId) {
-        supabase.from("meal_entries").delete().eq("id", id).then(() => {});
+        syncWrite("la comida", async () => {
+          const { error } = await supabase
+            .from("meal_entries")
+            .delete()
+            .eq("id", id);
+          if (error) throw error;
+        });
       }
     },
     [supabase],
@@ -321,17 +353,17 @@ export function MealsProvider({ children }: { children: React.ReactNode }) {
       setGoalsState(next);
       const userId = userIdRef.current;
       if (userId) {
-        supabase
-          .from("nutrition_goals")
-          .upsert({
+        syncWrite("los objetivos", async () => {
+          const { error } = await supabase.from("nutrition_goals").upsert({
             user_id: userId,
             kcal_target: Math.round(next.kcal),
             protein_target: Math.round(next.protein),
             fat_target: Math.round(next.fat),
             carbs_target: Math.round(next.carbs),
             updated_at: new Date().toISOString(),
-          })
-          .then(() => {});
+          });
+          if (error) throw error;
+        });
       }
     },
     [supabase],

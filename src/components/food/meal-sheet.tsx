@@ -86,15 +86,19 @@ export function MealSheet({ open, onClose, mealType, mealLabel, date }: Props) {
       return { id: f.alimentoId, name, quantityG: f.quantityG, kcal100, p100, c100, f100 };
     });
 
+    // Los campos *_100 son por 100 g: se normalizan por el peso real del
+    // plato para que entryMacros (quantityG/100 * kcal100) devuelva el total
+    // exacto y la cantidad mostrada sea el peso de verdad.
+    const per100 = totalWeight > 0 ? 100 / totalWeight : 0;
     addEntry({
       date, mealType, name: p.name,
       brand: null,
       barcode: "__plato__:" + JSON.stringify(breakdown), // Store breakdown for individual editing
-      quantityG: 100, // We use 100g as the baseline "1 portion" for backwards compatibility or fallback
-      kcal100: totalKcal,
-      protein100: totalP,
-      fat100: totalF,
-      carbs100: totalC,
+      quantityG: Math.round(totalWeight),
+      kcal100: totalKcal * per100,
+      protein100: totalP * per100,
+      fat100: totalF * per100,
+      carbs100: totalC * per100,
       eaten: false,
     });
     setView("list"); setSearch("");
@@ -315,13 +319,17 @@ function EntryRow({
       return { ...b, quantityG: qty };
     });
 
+    // Igual que al añadir el plato: *_100 normalizado por el peso total. Sin
+    // esto, guardar quantityG = peso total junto a los macros absolutos
+    // multiplicaba las kcal mostradas por (peso/100).
+    const per100 = totalQty > 0 ? 100 / totalQty : 0;
     onUpdateEntry(entry.id, {
       barcode: "__plato__:" + JSON.stringify(newBreakdown),
       quantityG: totalQty,
-      kcal100: totalKcal,
-      protein100: totalP,
-      carbs100: totalC,
-      fat100: totalF,
+      kcal100: totalKcal * per100,
+      protein100: totalP * per100,
+      carbs100: totalC * per100,
+      fat100: totalF * per100,
     });
     setEditing(false);
   };

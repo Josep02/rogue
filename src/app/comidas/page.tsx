@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, Coffee, Cookie, Moon, Utensils, Barcode, Book, X, CalendarDays } from "lucide-react";
+import { ChevronRight, Coffee, Cookie, Moon, Utensils, Barcode, Book, X, CalendarDays, Pencil } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { PantryModal } from "@/components/food/pantry-modal";
 import { MealSheet } from "@/components/food/meal-sheet";
 import { WeekPlannerModal } from "@/components/food/week-planner-modal";
+import { NutritionGoalsModal } from "@/components/food/nutrition-goals-modal";
 import { PantryProvider, usePantry } from "@/lib/store/pantry-store";
 import { BarcodeScanner } from "@/components/food/barcode-scanner";
 import {
@@ -67,6 +68,7 @@ export default function ComidasPage() {
   const [selected, setSelected] = useState(() => dayKey());
   const [pantryOpen, setPantryOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [goalsOpen, setGoalsOpen] = useState(false);
   const [activeMeal, setActiveMeal] = useState<{ type: MealType; label: string } | null>(null);
 
   const week = useMemo(() => buildWeek(selected), [selected]);
@@ -133,9 +135,19 @@ export default function ComidasPage() {
               / {goals.kcal} kcal
             </span>
           </p>
-          <span className="font-mono text-[11px] text-muted-foreground">
-            quedan {kcalLeft}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] text-muted-foreground">
+              quedan {kcalLeft}
+            </span>
+            <button
+              type="button"
+              onClick={() => setGoalsOpen(true)}
+              aria-label="Editar objetivos"
+              className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <Pencil className="size-3.5" />
+            </button>
+          </div>
         </div>
         <div className="my-2.5 h-2 overflow-hidden rounded-full bg-muted">
           <div
@@ -203,6 +215,7 @@ export default function ComidasPage() {
       })}
 
       <PantryModal open={pantryOpen} onClose={() => setPantryOpen(false)} />
+      <NutritionGoalsModal open={goalsOpen} onClose={() => setGoalsOpen(false)} />
       <WeekPlannerModal open={plannerOpen} onClose={() => setPlannerOpen(false)} initialDate={selected} />
       <MealSheet
         open={!!activeMeal}

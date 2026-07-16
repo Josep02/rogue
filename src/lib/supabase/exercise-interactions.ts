@@ -25,6 +25,8 @@ export async function isFavoriteExercise(
   return !!data;
 }
 
+/** Lanza si falla: supabase-js no rechaza (resuelve con { error }), y sin esto
+ *  el revert optimista del boton de favorito nunca llegaba a dispararse. */
 export async function setFavoriteExercise(
   supabase: SupabaseClient,
   userId: string,
@@ -32,15 +34,17 @@ export async function setFavoriteExercise(
   favorite: boolean,
 ): Promise<void> {
   if (favorite) {
-    await supabase
+    const { error } = await supabase
       .from("exercise_favorites")
       .upsert({ user_id: userId, exercise_id: exerciseId });
+    if (error) throw error;
   } else {
-    await supabase
+    const { error } = await supabase
       .from("exercise_favorites")
       .delete()
       .eq("user_id", userId)
       .eq("exercise_id", exerciseId);
+    if (error) throw error;
   }
 }
 

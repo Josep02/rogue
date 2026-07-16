@@ -10,6 +10,8 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllPages } from "@/lib/supabase/fetch-all";
+import { syncWrite } from "@/lib/supabase/sync";
 
 // --- Helpers ---
 
@@ -79,20 +81,29 @@ async function fetchHistory(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<CardioSession[]> {
-  const { data } = await supabase
-    .from("cardio_sessions")
-    .select("id, date, distance_km, duration_sec, coordinates")
-    .eq("user_id", userId)
-    .order("date", { ascending: false });
-  return (data ?? []).map(rowToSession);
+  // Paginado con .range() para no toparse con el limite silencioso de 1000
+  // filas por respuesta de PostgREST.
+  const rows = await fetchAllPages<CardioRow>(async (from, to) => {
+    const { data, error } = await supabase
+      .from("cardio_sessions")
+      .select("id, date, distance_km, duration_sec, coordinates")
+      .eq("user_id", userId)
+      .order("date", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    return (data ?? []) as CardioRow[];
+  });
+  return rows.map(rowToSession);
 }
 
+/** Upsert por el id generado en cliente: reintentable sin duplicar. */
 async function insertCardioSession(
   supabase: SupabaseClient,
   userId: string,
   session: CardioSession,
 ) {
-  await supabase.from("cardio_sessions").insert({
+  const { error } = await supabase.from("cardio_sessions").upsert({
     id: session.id,
     user_id: userId,
     date: session.dateISO,
@@ -100,6 +111,7 @@ async function insertCardioSession(
     duration_sec: session.durationSec,
     coordinates: session.coordinates,
   });
+  if (error) throw error;
 }
 
 // --- Sesion en curso: snapshot para sobrevivir a que el SO mate la PWA ---
@@ -204,7 +216,16 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const sessions = await fetchHistory(supabase, user.id);
+      let sessions: CardioSession[];
+      try {
+        sessions = await fetchHistory(supabase, user.id);
+      } catch (err) {
+        // El historial queda vacio hasta la proxima navegacion (userIdRef no
+        // se fija, asi que se reintentara); no bloquea el resto de la app.
+        console.error("No se pudo cargar el historial de cardio:", err);
+        if (active) setHydrated(true);
+        return;
+      }
       if (!active) return;
 
       userIdRef.current = user.id;
@@ -219,6 +240,12 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
   }, [pathname, supabase]);
 
   const watchIdRef = useRef<number | null>(null);
+
+  // Copia sincrona de coordenadas/distancia: stopTracking necesita leer los
+  // valores finales sin recurrir a updaters de estado (deben ser puros; hacer
+  // el insert dentro duplicaba la sesion cuando React los re-invoca).
+  const coordinatesRef = useRef<Coordinate[]>([]);
+  const distanceKmRef = useRef(0);
 
   // Cronometro por timestamps: aunque el navegador congele los timers en
   // segundo plano, al volver el tiempo mostrado se recalcula y es correcto.
@@ -284,13 +311,14 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
           lng: pos.coords.longitude,
           timestamp: pos.timestamp,
         };
-        setCoordinates((prev) => {
-          if (prev.length > 0) {
-            const last = prev[prev.length - 1];
-            setDistanceKm((d) => d + haversineKm(last.lat, last.lng, newCoord.lat, newCoord.lng));
-          }
-          return [...prev, newCoord];
-        });
+        const prev = coordinatesRef.current;
+        if (prev.length > 0) {
+          const last = prev[prev.length - 1];
+          distanceKmRef.current += haversineKm(last.lat, last.lng, newCoord.lat, newCoord.lng);
+        }
+        coordinatesRef.current = [...prev, newCoord];
+        setCoordinates(coordinatesRef.current);
+        setDistanceKm(distanceKmRef.current);
       },
       (err) => {
         console.warn(`GPS (${err.code}): ${err.message}`);
@@ -323,6 +351,8 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     setIsTracking(true);
     setIsPaused(false);
     setIsMinimized(false);
+    coordinatesRef.current = [];
+    distanceKmRef.current = 0;
     setCoordinates([]);
     setDistanceKm(0);
     setDurationSec(0);
@@ -351,6 +381,8 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
 
   const stopTracking = useCallback(() => {
     const finalDuration = computeDuration();
+    const finalCoordinates = coordinatesRef.current;
+    const finalDistance = distanceKmRef.current;
     accumulatedSecRef.current = 0;
     runningSinceRef.current = null;
     setIsTracking(false);
@@ -362,26 +394,24 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     clearSnapshot();
     setDurationSec(finalDuration);
 
-    setDistanceKm((finalDistance) => {
-      setCoordinates((finalCoordinates) => {
-        if (finalDistance > 0 || finalDuration > 10) {
-          const newSession: CardioSession = {
-            id: crypto.randomUUID(),
-            dateISO: new Date().toISOString(),
-            coordinates: finalCoordinates,
-            distanceKm: finalDistance,
-            durationSec: finalDuration,
-          };
-          setHistory((prev) => [newSession, ...prev]);
-          const userId = userIdRef.current;
-          if (userId) {
-            insertCardioSession(supabase, userId, newSession).catch(() => {});
-          }
-        }
-        return finalCoordinates; // We keep it in memory for now, although startTracking resets it
-      });
-      return finalDistance;
-    });
+    if (finalDistance > 0 || finalDuration > 10) {
+      const newSession: CardioSession = {
+        id: crypto.randomUUID(),
+        dateISO: new Date().toISOString(),
+        coordinates: finalCoordinates,
+        distanceKm: finalDistance,
+        durationSec: finalDuration,
+      };
+      setHistory((prev) => [newSession, ...prev]);
+      const userId = userIdRef.current;
+      if (userId) {
+        syncWrite("la ruta de cardio", () =>
+          insertCardioSession(supabase, userId, newSession),
+        );
+      }
+    }
+    // coordinates/distanceKm se quedan como estan para la pantalla de
+    // resumen; startTracking los resetea.
   }, [clearGPS, supabase, computeDuration, releaseWakeLock]);
 
   // Recuperacion: al arrancar, si quedo una sesion a medias (la PWA murio
@@ -416,7 +446,9 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     setHistory((prev) => [recovered, ...prev]);
     const userId = userIdRef.current;
     if (userId) {
-      insertCardioSession(supabase, userId, recovered).catch(() => {});
+      syncWrite("la ruta de cardio", () =>
+        insertCardioSession(supabase, userId, recovered),
+      );
     }
   }, [hydrated, isTracking, supabase]);
 

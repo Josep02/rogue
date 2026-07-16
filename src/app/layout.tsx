@@ -9,6 +9,7 @@ import { CardioProvider } from "@/lib/store/cardio-store";
 import { WorkoutSessionProvider } from "@/lib/store/workout-session-store";
 import { MealsProvider } from "@/lib/store/meals-store";
 import { OnboardingGate } from "@/components/onboarding-gate";
+import { SyncErrorToast } from "@/components/sync-error-toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -70,6 +71,7 @@ export default function RootLayout({
                     <AppShell>{children}</AppShell>
                   </HydrationGate>
                   <OnboardingGate />
+                  <SyncErrorToast />
                 </CardioProvider>
               </MealsProvider>
             </WorkoutSessionProvider>
