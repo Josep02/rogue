@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { CloudOff, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   dismissFailedWrites,
   getFailedWrites,
@@ -49,13 +50,12 @@ export function SyncErrorToast() {
             No se pudo guardar: {labels}.
           </p>
         </div>
-        <button
-          type="button"
+        <Button
           onClick={retryFailedWrites}
-          className="shrink-0 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background"
+          className="shrink-0 px-4 py-2 text-xs"
         >
           Reintentar
-        </button>
+        </Button>
         <button
           type="button"
           onClick={dismissFailedWrites}

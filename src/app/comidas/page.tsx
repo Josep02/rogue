@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight, Coffee, Cookie, Moon, Utensils, Barcode, Book, X, CalendarDays, Pencil } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
+import { Button } from "@/components/ui/button";
 import { PantryModal } from "@/components/food/pantry-modal";
 import { MealSheet } from "@/components/food/meal-sheet";
 import { WeekPlannerModal } from "@/components/food/week-planner-modal";
@@ -432,12 +433,12 @@ function PageActions({ setPantryOpen }: { setPantryOpen: (v: boolean) => void })
                 )}
 
                 <div className="flex flex-col gap-2">
-                  <button onClick={saveAsAlimento} className="rounded-2xl bg-foreground px-4 py-3 text-sm font-semibold text-background w-full">
+                  <Button fullWidth onClick={saveAsAlimento}>
                     Guardar Alimento
-                  </button>
-                  <button onClick={saveAsPlato} className="rounded-2xl bg-surface border border-border px-4 py-3 text-sm font-semibold w-full hover:bg-muted">
+                  </Button>
+                  <Button variant="secondary" fullWidth onClick={saveAsPlato}>
                     Guardar Plato
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

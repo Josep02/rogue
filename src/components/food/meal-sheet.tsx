@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, Circle, X, Plus, Trash2, Search, Pencil, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { usePantry } from "@/lib/store/pantry-store";
 import { useMeals, type MealType, type MealEntry, entryMacros, sumMacros, dayKey } from "@/lib/store/meals-store";
 
@@ -437,9 +438,9 @@ function EntryRow({
             <button type="button" onClick={handleCancel} className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface hover:bg-muted transition-colors">
               <X className="size-4 text-muted-foreground" />
             </button>
-            <button type="button" onClick={handleSavePlato} className="flex-1 rounded-2xl bg-foreground py-3 text-sm font-semibold text-background">
+            <Button onClick={handleSavePlato} className="flex-1">
               Guardar Plato
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -15,6 +15,7 @@ import {
   Plus,
 } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
+import { Button } from "@/components/ui/button";
 import { useCardio } from "@/lib/store/cardio-store";
 import { useRogue } from "@/lib/store/rogue-store";
 
@@ -198,13 +199,14 @@ export default function CardioPage() {
 
       {/* Action Button */}
       <div className="mt-4 flex justify-center">
-        <button
+        <Button
+          fullWidth
           onClick={isTracking ? maximize : startTracking}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-neutral-900 px-6 py-4 text-base font-semibold text-white shadow-lg transition-transform active:scale-95 dark:bg-white dark:text-neutral-900"
+          className="px-6 py-4 text-base font-semibold shadow-lg"
         >
           <Play className="size-5 fill-current" />
           {isTracking ? "Ver Ruta Activa" : "Empezar Ruta Libre"}
-        </button>
+        </Button>
       </div>
 
       {/* Grid of stats */}

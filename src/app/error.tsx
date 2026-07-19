@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { RotateCcw, TriangleAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function Error({
   error,
@@ -25,14 +26,10 @@ export default function Error({
           Ha ocurrido un error inesperado. Tus datos guardados no se han perdido.
         </p>
       </div>
-      <button
-        type="button"
-        onClick={() => unstable_retry()}
-        className="flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-transform active:scale-[0.98]"
-      >
+      <Button onClick={() => unstable_retry()} className="px-6">
         <RotateCcw className="size-4" />
         Reintentar
-      </button>
+      </Button>
     </div>
   );
 }

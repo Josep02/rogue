@@ -27,6 +27,7 @@ import { DEMO_ROUTINE } from "@/data/routine.demo";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAllPages } from "@/lib/supabase/fetch-all";
 import { syncWrite } from "@/lib/supabase/sync";
+import { Button } from "@/components/ui/button";
 import type {
   ExerciseNote,
   ExerciseNoteInput,
@@ -928,16 +929,15 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
           <p className="text-sm text-muted-foreground">
             Comprueba tu conexion e intentalo de nuevo.
           </p>
-          <button
-            type="button"
+          <Button
             onClick={() => {
               setLoadError(false);
               setLoadAttempt((n) => n + 1);
             }}
-            className="mt-3 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background"
+            className="mt-3 px-6"
           >
             Reintentar
-          </button>
+          </Button>
         </div>
       ) : (
         children

@@ -44,8 +44,10 @@ export function Sidebar() {
       </Link>
 
       <nav className="mt-8 flex flex-col gap-1">
-        {NAV_ITEMS.map((item) => {
-          const active = isNavItemActive(pathname, item.href);
+        {/* El perfil ya tiene su propia entrada con avatar al pie del sidebar;
+            en escritorio se omite del listado para no duplicarlo. */}
+        {NAV_ITEMS.filter((item) => item.href !== "/perfil").map((item) => {
+          const active = isNavItemActive(pathname, item);
           const Icon = item.icon;
           return (
             <Link

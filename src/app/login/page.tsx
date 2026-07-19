@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { signIn, signUp, type AuthState } from "@/lib/supabase/actions";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -117,17 +118,13 @@ export default function LoginPage() {
           <p className="text-sm text-destructive">{state.error}</p>
         )}
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-2 rounded-full bg-foreground py-3 text-sm font-medium text-background disabled:opacity-60"
-        >
+        <Button type="submit" fullWidth disabled={pending} className="mt-2">
           {pending
             ? "Un momento..."
             : mode === "login"
               ? "Iniciar sesion"
               : "Crear cuenta"}
-        </button>
+        </Button>
       </form>
     </div>
   );

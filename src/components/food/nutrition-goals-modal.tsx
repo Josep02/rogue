@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useMeals, type NutritionGoals } from "@/lib/store/meals-store";
 
 const subscribeNever = () => () => {};
@@ -124,14 +125,9 @@ function GoalsSheet({
               </label>
             ))}
 
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!valid}
-              className="mt-2 rounded-2xl bg-foreground py-3 text-sm font-semibold text-background disabled:opacity-50"
-            >
+            <Button fullWidth onClick={handleSave} disabled={!valid} className="mt-2">
               Guardar objetivos
-            </button>
+            </Button>
           </div>
         </div>
       </div>

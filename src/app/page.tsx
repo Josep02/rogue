@@ -11,16 +11,16 @@ import {
   ChevronRight,
   Clock,
   Flame,
-  Hourglass,
-  Layers,
   Lock,
   Timer,
 } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
+import { Button } from "@/components/ui/button";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { getDivisionLabel, getRankTier } from "@/lib/ranks";
 import { useRogue } from "@/lib/store/rogue-store";
 import { useWorkoutSession } from "@/lib/store/workout-session-store";
+import { dayKey, sumMacros, useMeals } from "@/lib/store/meals-store";
 import type { ComputedRank } from "@/lib/rank-engine";
 import { getDisplayName, type RoutineDay, type WorkoutSession } from "@/lib/workout/types";
 import { DEMO_EXERCISES } from "@/lib/exercises/repo";
@@ -144,13 +144,9 @@ function TodayCard({
         {todayDay.exercises.length} ejercicios · {estMinutes} min
       </p>
       <div className="mt-5 flex items-center justify-end">
-        <button
-          type="button"
-          onClick={onStart}
-          className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-neutral-900"
-        >
+        <Button onClick={onStart} className="px-6">
           Empezar entreno
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -405,18 +401,183 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
   );
 }
 
+/** Volumen levantado por dia de la semana natural (lunes..domingo) que contiene
+ *  hoy, con el total y la variacion frente a la semana anterior. Alimenta la
+ *  tarjeta-resumen semanal con su mini-grafico de barras. */
+function useWeekSummary(sessions: WorkoutSession[], mountedAt: number) {
+  return useMemo(() => {
+    const localKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+        d.getDate(),
+      ).padStart(2, "0")}`;
+
+    // Volumen por dia local (agrupa las sesiones por su fecha natural).
+    const volumeByKey = new Map<string, number>();
+    const trainedKeys = new Set<string>();
+    for (const s of sessions) {
+      const key = localKey(new Date(s.dateISO));
+      const vol = s.sets.reduce((a, set) => a + set.weightKg * set.reps, 0);
+      volumeByKey.set(key, (volumeByKey.get(key) ?? 0) + vol);
+      trainedKeys.add(key);
+    }
+
+    const now = new Date(mountedAt);
+    const dow = (now.getDay() + 6) % 7; // 0 = lunes
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(now.getDate() - dow);
+
+    const bars: number[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      bars.push(volumeByKey.get(localKey(d)) ?? 0);
+    }
+    const total = bars.reduce((a, b) => a + b, 0);
+
+    // Semana anterior (mismo rango, 7 dias antes) para la variacion.
+    let prevTotal = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() - 7 + i);
+      prevTotal += volumeByKey.get(localKey(d)) ?? 0;
+    }
+    const deltaPct =
+      prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
+
+    // Racha: dias consecutivos con entreno terminando hoy (o ayer si hoy aun
+    // no has entrenado, para no romper la racha a media jornada).
+    let streak = 0;
+    const cursor = new Date(now);
+    cursor.setHours(0, 0, 0, 0);
+    if (!trainedKeys.has(localKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+    while (trainedKeys.has(localKey(cursor))) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return { bars, total, deltaPct, todayIndex: dow, streak };
+  }, [sessions, mountedAt]);
+}
+
+function WeekVolumeCard({
+  bars,
+  total,
+  deltaPct,
+  todayIndex,
+  unit,
+}: {
+  bars: number[];
+  total: number;
+  deltaPct: number | null;
+  todayIndex: number;
+  unit: "kg" | "lb";
+}) {
+  const max = Math.max(...bars, 1);
+  return (
+    // Misma altura que TodayCard/WeekCalendarCard para que el carrusel no salte
+    // al deslizar; el grafico se ancla abajo (mt-auto) y rellena el hueco.
+    <div className="flex h-full min-h-[212px] flex-col rounded-3xl border border-border bg-surface p-5">
+      <div className="flex items-center justify-between">
+        <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
+          VOLUMEN SEMANA
+        </p>
+        {deltaPct !== null && (
+          <span
+            className={cn(
+              "font-mono text-[11px] font-medium",
+              deltaPct >= 0 ? "text-rank-esmeralda" : "text-muted-foreground",
+            )}
+          >
+            {deltaPct >= 0 ? "+" : ""}
+            {deltaPct}%
+          </span>
+        )}
+      </div>
+      <p className="mt-1 font-mono text-2xl font-medium leading-none">
+        {formatWeight(total, unit)}
+        <span className="text-sm font-normal text-muted-foreground"> {unit}</span>
+      </p>
+      <div className="mt-auto flex items-end gap-1.5 pt-6">
+        {bars.map((v, i) => (
+          <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+            <div className="flex h-14 w-full items-end">
+              <div
+                className="w-full rounded-md transition-[height] duration-300"
+                style={{
+                  height: `${Math.max(6, Math.round((v / max) * 100))}%`,
+                  background:
+                    i === todayIndex ? "var(--foreground)" : "var(--muted)",
+                }}
+              />
+            </div>
+            <span
+              className={cn(
+                "font-mono text-[10px]",
+                i === todayIndex ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              {WEEKDAY_LETTERS[i]}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NutritionCard({
+  kcalToday,
+  kcalGoal,
+}: {
+  kcalToday: number;
+  kcalGoal: number;
+}) {
+  const pct = kcalGoal > 0 ? Math.min(100, Math.round((kcalToday / kcalGoal) * 100)) : 0;
+  const left = Math.max(0, kcalGoal - kcalToday);
+  return (
+    <Link href="/comidas" className="block">
+      <PastelCard variant="mint" className="flex flex-col gap-2 active:scale-[0.99] transition-transform">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-xs tracking-[0.2em]">NUTRICIÓN HOY</p>
+          <Flame className="size-4" />
+        </div>
+        <p className="font-mono text-xl font-medium leading-none">
+          {kcalToday.toLocaleString("es-ES")}
+          <span className="text-sm font-normal opacity-70">
+            {" "}
+            / {kcalGoal.toLocaleString("es-ES")} kcal
+          </span>
+        </p>
+        <div
+          className="h-2 overflow-hidden rounded-full"
+          style={{ background: "rgba(0,0,0,0.08)" }}
+        >
+          <div
+            className="h-full rounded-full transition-[width]"
+            style={{ width: `${pct}%`, background: "var(--card-mint-foreground)" }}
+          />
+        </div>
+        <p className="text-[11px] opacity-80">quedan {left.toLocaleString("es-ES")} kcal</p>
+      </PastelCard>
+    </Link>
+  );
+}
+
 export default function Home() {
   const { profile, ranks, sessions, todayDay, routineDays, preferences } =
     useRogue();
   const { start: startWorkout } = useWorkoutSession();
+  const { entriesForDay, goals } = useMeals();
   const [page, setPage] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const page0Ref = useRef<HTMLDivElement>(null);
   const page1Ref = useRef<HTMLDivElement>(null);
+  const page2Ref = useRef<HTMLDivElement>(null);
   const [carouselHeight, setCarouselHeight] = useState<number>();
 
   useLayoutEffect(() => {
-    const refs = [page0Ref, page1Ref];
+    const refs = [page0Ref, page1Ref, page2Ref];
     const active = refs[page].current;
     if (active) setCarouselHeight(active.scrollHeight);
 
@@ -430,14 +591,15 @@ export default function Home() {
 
   function handleScroll() {
     const el = scrollRef.current;
-    if (!el) return;
-    const midpoint = (el.scrollWidth - el.clientWidth) / 2;
-    const next = el.scrollLeft > midpoint ? 1 : 0;
+    if (!el || el.clientWidth === 0) return;
+    // Pagina mas cercana segun el scroll (el ancho de pagina ~ clientWidth; el
+    // gap entre paginas es pequeno y el redondeo lo absorbe).
+    const next = Math.max(0, Math.min(2, Math.round(el.scrollLeft / el.clientWidth)));
     setPage((p) => (p === next ? p : next));
   }
 
   function goToPage(i: number) {
-    const refs = [page0Ref, page1Ref];
+    const refs = [page0Ref, page1Ref, page2Ref];
     refs[i].current?.scrollIntoView({
       behavior: "smooth",
       inline: "center",
@@ -445,22 +607,9 @@ export default function Home() {
     });
   }
 
-  // Momento de montaje: fija la ventana de "ultimos 7 dias" sin leer Date.now()
-  // durante el render (funcion impura).
+  // Momento de montaje: fija la ventana temporal sin leer Date.now() durante el
+  // render (funcion impura).
   const [mountedAt] = useState(() => Date.now());
-  const { weekSessions, weekVolume, weekTimeSec } = useMemo(() => {
-    const weekAgo = mountedAt - 7 * 24 * 60 * 60 * 1000;
-    const inWeek = sessions.filter(
-      (s) => new Date(s.dateISO).getTime() >= weekAgo,
-    );
-    const volume = inWeek.reduce(
-      (sum, s) =>
-        sum + s.sets.reduce((a, set) => a + set.weightKg * set.reps, 0),
-      0,
-    );
-    const timeSec = inWeek.reduce((sum, s) => sum + (s.durationSec ?? 0), 0);
-    return { weekSessions: inWeek, weekVolume: volume, weekTimeSec: timeSec };
-  }, [sessions, mountedAt]);
 
   // Estadisticas de duracion sobre todas las sesiones que la tengan registrada
   // (sesiones antiguas sin cronometro se ignoran para no falsear la media).
@@ -478,6 +627,12 @@ export default function Home() {
     };
   }, [sessions]);
   const estMinutes = todayDay ? todayDay.exercises.length * 9 : 0;
+
+  const weekSummary = useWeekSummary(sessions, mountedAt);
+  const kcalToday = useMemo(() => {
+    const eaten = sumMacros(entriesForDay(dayKey()).filter((e) => e.eaten));
+    return Math.round(eaten.kcal);
+  }, [entriesForDay]);
 
   // Sugerencias reales: ejercicios compuestos de los grupos que menos has
   // entrenado (sin rango o con menos sesiones), sacados de la biblioteca.
@@ -549,60 +704,52 @@ export default function Home() {
               />
             </div>
             <div ref={page1Ref} className="w-full shrink-0 snap-center snap-always">
+              <WeekVolumeCard
+                bars={weekSummary.bars}
+                total={weekSummary.total}
+                deltaPct={weekSummary.deltaPct}
+                todayIndex={weekSummary.todayIndex}
+                unit={preferences.unit}
+              />
+            </div>
+            <div ref={page2Ref} className="w-full shrink-0 snap-center snap-always">
               <WeekCalendarCard sessions={sessions} />
             </div>
           </div>
         </div>
         <div className="mt-3 flex items-center justify-center gap-1.5">
-          {[0, 1].map((i) => (
-            <button
-              key={i}
-              type="button"
-              aria-label={i === 0 ? "Ver hoy" : "Ver calendario"}
-              onClick={() => goToPage(i)}
-              className={cn(
-                "h-1.5 rounded-full transition-all",
-                page === i ? "w-5 bg-foreground" : "w-1.5 bg-muted",
-              )}
-            />
-          ))}
+          {["Ver hoy", "Ver volumen semanal", "Ver calendario"].map(
+            (label, i) => (
+              <button
+                key={label}
+                type="button"
+                aria-label={label}
+                onClick={() => goToPage(i)}
+                className={cn(
+                  "h-1.5 rounded-full transition-all",
+                  page === i ? "w-5 bg-foreground" : "w-1.5 bg-muted",
+                )}
+              />
+            ),
+          )}
         </div>
       </div>
 
-      <div className="-mx-5 grid grid-cols-3 gap-3 px-5 pb-1">
+      <div className="grid grid-cols-2 gap-3">
         <PastelCard variant="neutral" className="flex flex-col gap-2">
           <Flame className="size-4 text-muted-foreground" />
           <div>
             <p className="font-mono text-lg font-medium leading-none">
-              {sessions.length}
+              {weekSummary.streak}
+              <span className="text-xs font-normal text-muted-foreground">
+                {" "}
+                {weekSummary.streak === 1 ? "día" : "días"}
+              </span>
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">entrenos totales</p>
+            <p className="mt-1 text-xs text-muted-foreground">racha</p>
           </div>
         </PastelCard>
 
-        <PastelCard variant="neutral" className="flex flex-col gap-2">
-          <Layers className="size-4 text-muted-foreground" />
-          <div>
-            <p className="font-mono text-lg font-medium leading-none">
-              {formatWeight(weekVolume, preferences.unit)}
-              <span className="text-xs font-normal"> {preferences.unit}</span>
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">volumen semana</p>
-          </div>
-        </PastelCard>
-
-        <PastelCard variant="neutral" className="flex flex-col gap-2">
-          <Timer className="size-4 text-muted-foreground" />
-          <div>
-            <p className="font-mono text-lg font-medium leading-none">
-              {weekSessions.length}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">esta semana</p>
-          </div>
-        </PastelCard>
-      </div>
-
-      <div className="-mx-5 grid grid-cols-3 gap-3 px-5 pb-1">
         <PastelCard variant="neutral" className="flex flex-col gap-2">
           <Clock className="size-4 text-muted-foreground" />
           <div>
@@ -612,29 +759,9 @@ export default function Home() {
             <p className="mt-1 text-xs text-muted-foreground">media / entreno</p>
           </div>
         </PastelCard>
-
-        <PastelCard variant="neutral" className="flex flex-col gap-2">
-          <Clock className="size-4 text-muted-foreground" />
-          <div>
-            <p className="font-mono text-lg font-medium leading-none">
-              {weekTimeSec > 0 ? formatDurationLabel(weekTimeSec) : "—"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">tiempo semana</p>
-          </div>
-        </PastelCard>
-
-        <PastelCard variant="neutral" className="flex flex-col gap-2">
-          <Hourglass className="size-4 text-muted-foreground" />
-          <div>
-            <p className="font-mono text-lg font-medium leading-none">
-              {timeStats.longestSec > 0
-                ? formatDurationLabel(timeStats.longestSec)
-                : "—"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">más largo</p>
-          </div>
-        </PastelCard>
       </div>
+
+      <NutritionCard kcalToday={kcalToday} kcalGoal={goals.kcal} />
 
       <div>
         <div className="flex items-center justify-between">
@@ -642,7 +769,7 @@ export default function Home() {
             TUS RANGOS
           </p>
           <Link
-            href="/rangos"
+            href="/perfil?tab=rangos"
             className="flex items-center gap-1 rounded-full py-2 pl-2 pr-1 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
             Ver todo
@@ -657,9 +784,18 @@ export default function Home() {
       </div>
 
       <div className="pb-4">
-        <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
-          DESCUBRE EJERCICIOS
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground">
+            DESCUBRE EJERCICIOS
+          </p>
+          <Link
+            href="/rutinas?tab=ejercicios"
+            className="flex items-center gap-1 rounded-full py-2 pl-2 pr-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            Ver todo
+            <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
           {suggestions.map(({ ex, variant }) => (
             <PastelCard

@@ -1,22 +1,29 @@
 import {
-  CalendarDays,
+  CircleUserRound,
   Dumbbell,
   Home,
-  Shield,
   Footprints,
   UtensilsCrossed,
 } from "lucide-react";
 
-/** Navegacion principal, compartida entre BottomNav (movil) y Sidebar (escritorio). */
+/** Navegacion principal, compartida entre BottomNav (movil) y Sidebar (escritorio).
+ *  Los rangos viven dentro de Perfil (pestana "Rangos") y la biblioteca de
+ *  ejercicios dentro de Entreno (pestana "Ejercicios"). */
 export const NAV_ITEMS = [
   { href: "/", label: "Inicio", icon: Home },
-  { href: "/rutinas", label: "Rutinas", icon: CalendarDays },
+  // "Entreno" agrupa rutina + biblioteca de ejercicios. matchPrefixes marca la
+  // pestana como activa tambien en las fichas de ejercicio (/biblioteca/[id]).
+  { href: "/rutinas", label: "Entreno", icon: Dumbbell, matchPrefixes: ["/biblioteca"] },
   { href: "/cardio", label: "Cardio", icon: Footprints },
   { href: "/comidas", label: "Comidas", icon: UtensilsCrossed },
-  { href: "/biblioteca", label: "Ejercicios", icon: Dumbbell },
-  { href: "/rangos", label: "Rangos", icon: Shield },
+  { href: "/perfil", label: "Perfil", icon: CircleUserRound },
 ] as const;
 
-export function isNavItemActive(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+export function isNavItemActive(
+  pathname: string,
+  item: { href: string; matchPrefixes?: readonly string[] },
+): boolean {
+  if (item.href === "/") return pathname === "/";
+  if (pathname.startsWith(item.href)) return true;
+  return (item.matchPrefixes ?? []).some((p) => pathname.startsWith(p));
 }

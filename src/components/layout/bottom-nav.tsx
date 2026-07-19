@@ -19,7 +19,7 @@ export function BottomNav() {
         )}
       >
         {NAV_ITEMS.map((item) => {
-          const active = isNavItemActive(pathname, item.href);
+          const active = isNavItemActive(pathname, item);
           const Icon = item.icon;
 
           return (

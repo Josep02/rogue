@@ -4,6 +4,7 @@ import { use, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ArrowLeft, MapPin, Activity, Clock, Flame } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useCardio } from "@/lib/store/cardio-store";
 
 const MapView = dynamic(() => import("@/components/cardio/map-view"), {
@@ -41,12 +42,9 @@ export default function ActivityDetailsPage({
     return (
       <div className="flex flex-col items-center justify-center gap-4 pt-24 text-center">
         <p className="text-muted-foreground">Actividad no encontrada.</p>
-        <button
-          onClick={() => router.push("/cardio")}
-          className="rounded-full bg-neutral-900 px-6 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-        >
+        <Button onClick={() => router.push("/cardio")} className="px-6 py-2">
           Volver a Cardio
-        </button>
+        </Button>
       </div>
     );
   }

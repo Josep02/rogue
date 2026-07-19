@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Search, X, Heart, Pencil, Trash2, Plus, Check, Barcode } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { usePantry, Alimento, Plato, PlatoFood } from "@/lib/store/pantry-store";
 import { BarcodeScanner } from "@/components/food/barcode-scanner";
 
@@ -162,8 +163,8 @@ function AlimentoForm({
         </div>
       </div>
       <div className="mt-6 flex justify-end gap-3">
-        <button type="button" onClick={onCancel} className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground" disabled={loadingCode}>Cancelar</button>
-        <button type="button" onClick={handleSave} className="rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background" disabled={loadingCode}>Guardar</button>
+        <Button variant="ghost" onClick={onCancel} disabled={loadingCode}>Cancelar</Button>
+        <Button onClick={handleSave} disabled={loadingCode}>Guardar</Button>
       </div>
     </div>
   );
@@ -332,8 +333,8 @@ function PlatoForm({
       </div>
 
       <div className="mt-6 flex justify-end gap-3">
-        <button type="button" onClick={onCancel} className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">Cancelar</button>
-        <button type="button" onClick={handleSave} className="rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background">Guardar Plato</button>
+        <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
+        <Button onClick={handleSave}>Guardar Plato</Button>
       </div>
     </div>
   );

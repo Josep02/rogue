@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import {
-  ArrowLeft,
   Check,
   ChevronRight,
   Flame,
@@ -14,10 +13,11 @@ import {
   Weight,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect } from "react";
+import { RanksPanel } from "@/components/profile/ranks-panel";
 import { PastelCard } from "@/components/ui/pastel-card";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut } from "@/lib/supabase/actions";
@@ -247,15 +247,15 @@ function EditIdentityModal({
 
         {error && <p className="text-xs text-destructive">{error}</p>}
 
-        <button
-          type="button"
+        <Button
+          fullWidth
           onClick={save}
           disabled={saving || name.trim().length === 0 || username.trim().length === 0}
-          className="flex items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-sm font-medium text-accent-foreground transition-transform active:scale-[0.99] disabled:opacity-60"
+          className="py-3.5"
         >
           <Check className="size-4" />
           {saving ? "Guardando..." : "Guardar cambios"}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -375,17 +375,17 @@ function EditPhysicalModal({
           Cambiar el peso o el sexo recalcula tus rangos al momento.
         </p>
 
-        <button
-          type="button"
+        <Button
+          fullWidth
           onClick={() => {
             updateProfile({ bodyweightKg, heightCm, sex, goal });
             onClose();
           }}
-          className="flex items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-sm font-medium text-accent-foreground transition-transform active:scale-[0.99]"
+          className="py-3.5"
         >
           <Check className="size-4" />
           Guardar cambios
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -393,11 +393,37 @@ function EditPhysicalModal({
   return portalTarget ? createPortal(content, portalTarget) : content;
 }
 
-export default function PerfilPage() {
+type ProfileTab = "general" | "rangos" | "ajustes";
+
+const PROFILE_TABS: { id: ProfileTab; label: string }[] = [
+  { id: "general", label: "General" },
+  { id: "rangos", label: "Rangos" },
+  { id: "ajustes", label: "Ajustes" },
+];
+
+function parseTab(value: string | undefined): ProfileTab {
+  return value === "rangos" || value === "ajustes" ? value : "general";
+}
+
+export default function PerfilPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { profile, sessions, ranks, preferences, resetAll } = useRogue();
   const [editOpen, setEditOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+
+  // Pestana inicial via URL (?tab=rangos, usado por la home y el redirect de
+  // /rangos). El toggle local se guarda como override ligado al valor de la
+  // URL: si la URL cambia (p.ej. tocar "Perfil" en la barra estando en otra
+  // pestana), el override deja de aplicar y manda la URL — sin efectos de
+  // sincronizacion.
+  const urlTab = parseTab(use(searchParams).tab);
+  const [override, setOverride] = useState<{ base: ProfileTab; tab: ProfileTab } | null>(null);
+  const tab = override && override.base === urlTab ? override.tab : urlTab;
+  const setTab = (next: ProfileTab) => setOverride({ base: urlTab, tab: next });
 
   const displayName = getDisplayName(profile, preferences);
   const initials =
@@ -411,22 +437,8 @@ export default function PerfilPage() {
   const rankedCount = ranks.filter((r) => r.ranked).length;
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      <header className="relative mx-auto flex w-full shrink-0 items-center px-4 py-2 pt-10 md:max-w-2xl">
-        <Link
-          href="/"
-          aria-label="Volver atrás"
-          className="flex size-10 z-10 items-center justify-center rounded-full bg-surface border border-border shadow-sm text-muted-foreground transition-all hover:bg-muted active:scale-95"
-        >
-          <ArrowLeft className="size-5 text-foreground" />
-        </Link>
-        <span className="absolute inset-0 flex items-center justify-center pt-10 text-sm font-semibold pointer-events-none">
-          Perfil
-        </span>
-      </header>
-
-      <div className="mx-auto flex w-full flex-1 flex-col gap-6 overflow-y-auto px-5 pb-8 pt-2 md:max-w-2xl">
-        <div className="flex flex-col items-center text-center gap-3 pt-2 pb-2">
+    <div className="flex flex-col gap-6 pt-2 pb-4">
+      <div className="flex flex-col items-center text-center gap-3 pt-2 pb-2">
         <span className="flex size-24 shrink-0 items-center justify-center rounded-full bg-accent text-3xl font-semibold text-accent-foreground shadow-sm">
           {initials}
         </span>
@@ -440,6 +452,29 @@ export default function PerfilPage() {
         </div>
       </div>
 
+      {/* Selector de pestana: mismo patron pill-toggle del resto de la app */}
+      <div className="flex rounded-full bg-muted p-1">
+        {PROFILE_TABS.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={cn(
+              "flex-1 rounded-full py-2 text-xs font-medium transition-colors",
+              tab === id
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "rangos" && <RanksPanel />}
+
+      {tab === "general" && (
+        <>
       <Section title="IDENTIDAD">
         <RowCard
           onRowClick={() => setIdentityOpen(true)}
@@ -496,7 +531,11 @@ export default function PerfilPage() {
           El peso corporal y el sexo se usan para calcular tus rangos de fuerza.
         </p>
       </Section>
+        </>
+      )}
 
+      {tab === "ajustes" && (
+        <>
       <Section title="APARIENCIA">
         <ThemeToggle />
       </Section>
@@ -527,24 +566,18 @@ export default function PerfilPage() {
 
       <div className="flex flex-col gap-2">
         <form action={signOut}>
-          <button
-            type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
+          <Button type="submit" variant="secondary" fullWidth>
             <LogOut className="size-4" />
             Cerrar sesion
-          </button>
+          </Button>
         </form>
-        <button
-          type="button"
-          onClick={() => setConfirmResetOpen(true)}
-          className="flex items-center justify-center gap-2 rounded-2xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
+        <Button variant="secondary" fullWidth onClick={() => setConfirmResetOpen(true)}>
           <RotateCcw className="size-4" />
           Reiniciar datos de demo
-        </button>
+        </Button>
       </div>
-      </div>
+        </>
+      )}
 
       <EditPhysicalModal open={editOpen} onClose={() => setEditOpen(false)} />
       <EditIdentityModal open={identityOpen} onClose={() => setIdentityOpen(false)} />

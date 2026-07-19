@@ -12,9 +12,7 @@ import { WorkoutSessionModal } from "@/components/workout/workout-session-modal"
 /** Paginas que gestionan su propio layout completo (cabecera, scroll, ancho):
  *  no reciben el padding/max-width del AppShell ni la barra inferior. */
 function isFullBleed(pathname: string) {
-  return (
-    pathname === "/onboarding" || pathname === "/perfil" || pathname === "/login"
-  );
+  return pathname === "/onboarding" || pathname === "/login";
 }
 
 /** Onboarding y login son los unicos flujos sin navegacion principal, en

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Minus, Plus } from "lucide-react";
 import { useRogue } from "@/lib/store/rogue-store";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUserId } from "@/lib/supabase/exercise-interactions";
 import type { Sex } from "@/lib/workout/types";
@@ -253,11 +254,11 @@ export default function OnboardingPage() {
         )}
       </div>
 
-      <button
-        type="button"
+      <Button
+        fullWidth
         disabled={!canNext}
         onClick={() => (step < 2 ? setStep(step + 1) : finish())}
-        className="mt-8 flex items-center justify-center gap-2 rounded-full bg-accent py-4 text-sm font-medium text-accent-foreground transition-opacity disabled:opacity-40"
+        className="mt-8 py-4"
       >
         {step < 2 ? "Continuar" : "Empezar"}
         {step < 2 ? (
@@ -265,7 +266,7 @@ export default function OnboardingPage() {
         ) : (
           <Check className="size-4" />
         )}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { PastelCard } from "@/components/ui/pastel-card";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ExerciseSelectorModal } from "@/components/routines/exercise-selector-modal";
 import { getExerciseInfo, useRogue } from "@/lib/store/rogue-store";
@@ -149,14 +150,10 @@ export function WorkoutSessionModal() {
         </div>
 
         <div className="mx-auto w-full shrink-0 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 md:max-w-2xl">
-          <button
-            type="button"
-            onClick={close}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-accent py-4 text-sm font-medium text-accent-foreground transition-transform active:scale-[0.99]"
-          >
+          <Button fullWidth onClick={close} className="py-4">
             Volver al inicio
             <ArrowRight className="size-4" />
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -198,14 +195,10 @@ export function WorkoutSessionModal() {
                 </div>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={dismissReminders}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-sm font-medium text-accent-foreground transition-transform active:scale-[0.99]"
-            >
+            <Button fullWidth onClick={dismissReminders} className="mt-4 py-3.5">
               Entendido
               <Check className="size-4" />
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -421,15 +414,15 @@ export function WorkoutSessionModal() {
             </div>
           </div>
         )}
-        <button
-          type="button"
+        <Button
+          fullWidth
           disabled={doneCount === 0}
           onClick={finish}
-          className="pointer-events-auto mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-accent py-4 text-sm font-medium text-accent-foreground transition-opacity disabled:opacity-40"
+          className="pointer-events-auto mx-auto max-w-sm py-4"
         >
           Finalizar entreno
           <Check className="size-4" />
-        </button>
+        </Button>
       </div>
 
       <ExerciseSelectorModal
