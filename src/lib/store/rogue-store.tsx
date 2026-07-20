@@ -899,27 +899,54 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
 
   const todayDay = todayDays[0] ?? null;
 
-  const value: RogueContextValue = {
-    hydrated,
-    authenticated,
-    profile: state.profile,
-    sessions: state.sessions,
-    ranks,
-    muscleRanks,
-    routineDays: state.routineDays,
-    todayDays,
-    todayDay,
-    preferences: state.preferences,
-    completeOnboarding,
-    updateProfile,
-    updatePreferences,
-    updateUsername,
-    logSession,
-    exerciseNotes: state.exerciseNotes,
-    acknowledgeReminders,
-    saveRoutine,
-    resetAll,
-  };
+  // Memoizado para que el objeto de contexto sea estable entre renders y no
+  // fuerce un re-render de todos los consumidores de useRogue en cada render
+  // del provider. Las acciones ya son estables (useCallback) y los derivados
+  // (ranks/todayDays) van memoizados aparte.
+  const value: RogueContextValue = useMemo(
+    () => ({
+      hydrated,
+      authenticated,
+      profile: state.profile,
+      sessions: state.sessions,
+      ranks,
+      muscleRanks,
+      routineDays: state.routineDays,
+      todayDays,
+      todayDay,
+      preferences: state.preferences,
+      completeOnboarding,
+      updateProfile,
+      updatePreferences,
+      updateUsername,
+      logSession,
+      exerciseNotes: state.exerciseNotes,
+      acknowledgeReminders,
+      saveRoutine,
+      resetAll,
+    }),
+    [
+      hydrated,
+      authenticated,
+      state.profile,
+      state.sessions,
+      ranks,
+      muscleRanks,
+      state.routineDays,
+      todayDays,
+      todayDay,
+      state.preferences,
+      state.exerciseNotes,
+      completeOnboarding,
+      updateProfile,
+      updatePreferences,
+      updateUsername,
+      logSession,
+      acknowledgeReminders,
+      saveRoutine,
+      resetAll,
+    ],
+  );
 
   return (
     <RogueContext.Provider value={value}>

@@ -11,6 +11,8 @@ import { WorkoutSessionProvider } from "@/lib/store/workout-session-store";
 import { MealsProvider } from "@/lib/store/meals-store";
 import { OnboardingGate } from "@/components/onboarding-gate";
 import { SyncErrorToast } from "@/components/sync-error-toast";
+import { SetupNotice } from "@/components/setup-notice";
+import { getMissingSupabaseEnv } from "@/lib/supabase/env";
 import "./globals.css";
 
 const inter = Inter({
@@ -56,6 +58,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const missingEnv = getMissingSupabaseEnv();
+
   return (
     <html
       lang="es"
@@ -63,6 +67,9 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="antialiased">
+        {missingEnv.length > 0 ? (
+          <SetupNotice missing={missingEnv} />
+        ) : (
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <ThemeColorSync />
           <RogueProvider>
@@ -79,6 +86,7 @@ export default function RootLayout({
             </WorkoutSessionProvider>
           </RogueProvider>
         </ThemeProvider>
+        )}
         <ServiceWorkerRegister />
       </body>
     </html>

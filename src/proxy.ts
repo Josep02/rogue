@@ -1,11 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 // Next.js 16 renombro "middleware" a "proxy" (mismo mecanismo). Esta funcion
 // se limita a refrescar el token de sesion de Supabase en cada request para
 // que las cookies no caduquen mientras el usuario navega.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+
+  // Sin variables de entorno de Supabase no hay sesion que refrescar: dejamos
+  // pasar la request para que el layout muestre la pantalla de setup en vez de
+  // reventar aqui creando el cliente con credenciales undefined.
+  if (!isSupabaseConfigured()) return response;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
