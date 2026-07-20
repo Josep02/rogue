@@ -15,6 +15,10 @@ import { syncWrite } from "@/lib/supabase/sync";
 
 export type HealthScore = "green" | "yellow" | "orange" | "red";
 
+/** Ingrediente de un producto listo: nombre y, si OFF declaraba su porcentaje,
+ *  gramos estimados dentro de la racion (si no, queda en blanco). */
+export type Ingredient = { name: string; grams?: number };
+
 export type Alimento = {
   id: string;
   name: string;
@@ -24,10 +28,31 @@ export type Alimento = {
   fat: number;
   isFavorite: boolean;
   healthScore?: HealthScore;
-  /** Nombres de ingredientes de un producto listo escaneado (informativo).
+  /** Ingredientes de un producto listo escaneado (informativo).
    *  Vacio/undefined para alimentos simples y creados a mano. */
-  ingredients?: string[];
+  ingredients?: Ingredient[];
+  /** Tamaño de racion en g del producto (0/undefined = desconocido). */
+  servingG?: number;
 };
+
+/** Normaliza el jsonb de ingredientes: acepta el formato viejo (string[]) y el
+ *  nuevo ({name, grams?}[]); devuelve undefined si esta vacio. */
+function normalizeIngredients(raw: unknown): Ingredient[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: Ingredient[] = raw.map((x) =>
+    typeof x === "string"
+      ? { name: x }
+      : {
+          name: String((x as { name?: unknown }).name ?? ""),
+          grams:
+            typeof (x as { grams?: unknown }).grams === "number"
+              ? (x as { grams: number }).grams
+              : undefined,
+        },
+  );
+  const clean = out.filter((i) => i.name);
+  return clean.length > 0 ? clean : undefined;
+}
 
 export type PlatoFood = {
   alimentoId: string;
@@ -47,8 +72,10 @@ export type Plato = {
   protein?: number;
   carbs?: number;
   fat?: number;
-  /** Nombres de ingredientes de un producto listo (informativo). */
-  ingredients?: string[];
+  /** Ingredientes de un producto listo (informativo). */
+  ingredients?: Ingredient[];
+  /** Tamaño de racion en g del producto (0/undefined = desconocido). */
+  servingG?: number;
 };
 
 /** Un plato "listo" (producto preparado escaneado) no tiene ingredientes
@@ -123,7 +150,8 @@ type FoodRow = {
   protein: number;
   carbs: number;
   fat: number;
-  ingredients: string[] | null;
+  ingredients: unknown;
+  serving_g: number | null;
   is_favorite: boolean;
   health_score: HealthScore | null;
 };
@@ -132,7 +160,12 @@ type DishRow = {
   id: string;
   name: string;
   kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
   foods: PlatoFood[];
+  ingredients: unknown;
+  serving_g: number | null;
   is_favorite: boolean;
   health_score: HealthScore | null;
 };
@@ -147,7 +180,8 @@ function rowToAlimento(r: FoodRow): Alimento {
     fat: Number(r.fat),
     isFavorite: r.is_favorite,
     healthScore: r.health_score ?? undefined,
-    ingredients: r.ingredients && r.ingredients.length > 0 ? r.ingredients : undefined,
+    ingredients: normalizeIngredients(r.ingredients),
+    servingG: r.serving_g ? Number(r.serving_g) : undefined,
   };
 }
 
@@ -156,9 +190,14 @@ function rowToPlato(r: DishRow): Plato {
     id: r.id,
     name: r.name,
     kcal: Number(r.kcal),
+    protein: Number(r.protein),
+    carbs: Number(r.carbs),
+    fat: Number(r.fat),
     foods: r.foods ?? [],
     isFavorite: r.is_favorite,
     healthScore: r.health_score ?? undefined,
+    ingredients: normalizeIngredients(r.ingredients),
+    servingG: r.serving_g ? Number(r.serving_g) : undefined,
   };
 }
 
@@ -172,6 +211,7 @@ function alimentoToRow(userId: string, a: Alimento) {
     carbs: a.carbs,
     fat: a.fat,
     ingredients: a.ingredients ?? [],
+    serving_g: a.servingG ?? 0,
     is_favorite: a.isFavorite,
     health_score: a.healthScore ?? null,
   };
@@ -183,7 +223,12 @@ function platoToRow(userId: string, p: Plato) {
     user_id: userId,
     name: p.name,
     kcal: p.kcal,
+    protein: p.protein ?? 0,
+    carbs: p.carbs ?? 0,
+    fat: p.fat ?? 0,
     foods: p.foods,
+    ingredients: p.ingredients ?? [],
+    serving_g: p.servingG ?? 0,
     is_favorite: p.isFavorite,
     health_score: p.healthScore ?? null,
   };
@@ -197,7 +242,7 @@ async function fetchPantry(
     fetchAllPages<FoodRow>(async (from, to) => {
       const { data, error } = await supabase
         .from("pantry_foods")
-        .select("id, name, kcal, protein, carbs, fat, ingredients, is_favorite, health_score")
+        .select("id, name, kcal, protein, carbs, fat, ingredients, serving_g, is_favorite, health_score")
         .eq("user_id", userId)
         .order("name")
         .order("id")
@@ -208,7 +253,7 @@ async function fetchPantry(
     fetchAllPages<DishRow>(async (from, to) => {
       const { data, error } = await supabase
         .from("pantry_dishes")
-        .select("id, name, kcal, foods, is_favorite, health_score")
+        .select("id, name, kcal, protein, carbs, fat, foods, ingredients, serving_g, is_favorite, health_score")
         .eq("user_id", userId)
         .order("name")
         .order("id")

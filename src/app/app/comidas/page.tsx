@@ -260,7 +260,7 @@ function MacroBar({
 }
 
 function PageActions({ setPantryOpen }: { setPantryOpen: (v: boolean) => void }) {
-  const { addAlimento } = usePantry();
+  const { addAlimento, addPlato } = usePantry();
   const { notify } = useToast();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<any | null>(null);
@@ -292,38 +292,56 @@ function PageActions({ setPantryOpen }: { setPantryOpen: (v: boolean) => void })
     }
   };
 
-  const saveAsAlimento = () => {
-    if (!scannedProduct) return;
-    const n = scannedProduct.nutriments;
-    
+  // Macros por 100 g + healthScore comunes a ambos tipos de guardado.
+  const productMacros = () => {
+    const n = scannedProduct?.nutriments;
     let healthScore: "green" | "yellow" | "orange" | "red" | undefined = undefined;
-    if (scannedProduct.nutriscore_grade) {
+    if (scannedProduct?.nutriscore_grade) {
       const grade = scannedProduct.nutriscore_grade.toLowerCase();
-      if (grade === 'a' || grade === 'b') healthScore = "green";
-      else if (grade === 'c') healthScore = "yellow";
-      else if (grade === 'd') healthScore = "orange";
-      else if (grade === 'e') healthScore = "red";
+      if (grade === "a" || grade === "b") healthScore = "green";
+      else if (grade === "c") healthScore = "yellow";
+      else if (grade === "d") healthScore = "orange";
+      else if (grade === "e") healthScore = "red";
     }
-
-    addAlimento({
-      name: scannedProduct.product_name || "Desconocido",
+    return {
+      name: scannedProduct?.product_name || "Desconocido",
       kcal: n?.["energy-kcal_100g"] || 0,
       protein: n?.["proteins_100g"] || 0,
       carbs: n?.["carbohydrates_100g"] || 0,
       fat: n?.["fat_100g"] || 0,
       healthScore,
-      // Productos listos: guardamos la lista de ingredientes (informativa). Las
-      // macros del producto entero (por 100 g) ya son correctas; los gramos por
-      // ingrediente no los da OFF, se dejan en blanco.
       ingredients: parsed.ingredients.length > 0 ? parsed.ingredients : undefined,
+      servingG: parsed.servingG > 0 ? parsed.servingG : undefined,
+    };
+  };
+
+  const saveAsAlimento = () => {
+    if (!scannedProduct) return;
+    const m = productMacros();
+    addAlimento(m);
+    setScannedProduct(null);
+    notify("¡Alimento guardado en la despensa!", "success");
+  };
+
+  // Plato "listo": guarda las macros del producto POR 100 G y sus ingredientes,
+  // con foods vacio (no hay ingredientes enlazables a la despensa). Se registra
+  // por gramos como un alimento, pero vive en la pestana Platos.
+  const saveAsPlato = () => {
+    if (!scannedProduct) return;
+    const m = productMacros();
+    addPlato({
+      name: m.name,
+      kcal: m.kcal,
+      protein: m.protein,
+      carbs: m.carbs,
+      fat: m.fat,
+      foods: [],
+      ingredients: m.ingredients,
+      servingG: m.servingG,
+      healthScore: m.healthScore,
     });
     setScannedProduct(null);
-    notify(
-      parsed.isReadyMeal
-        ? "¡Producto listo guardado en la despensa!"
-        : "¡Alimento guardado en la despensa!",
-      "success",
-    );
+    notify("¡Plato listo guardado en la despensa!", "success");
   };
 
   return (
@@ -416,7 +434,7 @@ function PageActions({ setPantryOpen }: { setPantryOpen: (v: boolean) => void })
                 {parsed.ingredients.length > 0 && (
                   <div className="flex flex-col gap-1.5">
                     <p className="font-mono text-[11px] tracking-[0.2em] text-muted-foreground">
-                      INGREDIENTES
+                      INGREDIENTES{parsed.servingG > 0 && ` · RACIÓN ${parsed.servingG} G`}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {parsed.ingredients.map((ing, i) => (
@@ -424,19 +442,42 @@ function PageActions({ setPantryOpen }: { setPantryOpen: (v: boolean) => void })
                           key={i}
                           className="rounded-full bg-surface border border-border px-2.5 py-1 text-[11px] text-muted-foreground"
                         >
-                          {ing}
+                          {ing.grams != null && (
+                            <span className="font-medium text-foreground">{ing.grams}g </span>
+                          )}
+                          {ing.name}
                         </span>
                       ))}
                     </div>
                     <p className="text-[11px] text-muted-foreground/70">
-                      Gramos por ingrediente no disponibles en el producto.
+                      Los gramos, cuando aparecen, están estimados a partir del % declarado.
                     </p>
                   </div>
                 )}
 
-                <Button fullWidth onClick={saveAsAlimento}>
-                  {parsed.isReadyMeal ? "Guardar producto listo" : "Guardar alimento"}
-                </Button>
+                {/* La opcion sugerida por la deteccion va primero/destacada; la
+                    otra queda como alternativa por si el usuario discrepa. */}
+                <div className="flex flex-col gap-2">
+                  {parsed.isReadyMeal ? (
+                    <>
+                      <Button fullWidth onClick={saveAsPlato}>
+                        Guardar como plato listo
+                      </Button>
+                      <Button variant="secondary" fullWidth onClick={saveAsAlimento}>
+                        Guardar como alimento
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button fullWidth onClick={saveAsAlimento}>
+                        Guardar como alimento
+                      </Button>
+                      <Button variant="secondary" fullWidth onClick={saveAsPlato}>
+                        Guardar como plato listo
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>

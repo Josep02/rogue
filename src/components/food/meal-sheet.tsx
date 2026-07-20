@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { CheckCircle2, Circle, X, Plus, Trash2, Search, Pencil, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { usePantry } from "@/lib/store/pantry-store";
+import { usePantry, isReadyPlato } from "@/lib/store/pantry-store";
 import { useMeals, type MealType, type MealEntry, entryMacros, sumMacros, dayKey } from "@/lib/store/meals-store";
 
 const HEALTH_DOT: Record<string, string> = {
@@ -60,7 +60,9 @@ export function MealSheet({ open, onClose, mealType, mealLabel, date }: Props) {
     if (!a) return;
     addEntry({
       date, mealType, name: a.name, brand: null, barcode: null,
-      quantityG: 100, kcal100: a.kcal, protein100: a.protein, fat100: a.fat, carbs100: a.carbs,
+      // Racion del producto si OFF la dio; si no, 100 g.
+      quantityG: a.servingG && a.servingG > 0 ? a.servingG : 100,
+      kcal100: a.kcal, protein100: a.protein, fat100: a.fat, carbs100: a.carbs,
       eaten: false,
     });
     setView("list"); setSearch("");
@@ -69,7 +71,22 @@ export function MealSheet({ open, onClose, mealType, mealLabel, date }: Props) {
   const addPlatoToMeal = (platoId: string) => {
     const p = platos.find(x => x.id === platoId);
     if (!p) return;
-    
+
+    // Plato "listo" (producto escaneado): sus macros ya son por 100 g y no tiene
+    // ingredientes enlazados, asi que se registra como un alimento normal (por
+    // gramos, sin desglose editable). Cantidad inicial: 100 g.
+    if (isReadyPlato(p)) {
+      addEntry({
+        date, mealType, name: p.name, brand: null, barcode: null,
+        // Racion del producto si OFF la dio; si no, 100 g.
+        quantityG: p.servingG && p.servingG > 0 ? p.servingG : 100,
+        kcal100: p.kcal, protein100: p.protein ?? 0, fat100: p.fat ?? 0, carbs100: p.carbs ?? 0,
+        eaten: false,
+      });
+      setView("list"); setSearch("");
+      return;
+    }
+
     let totalP = 0, totalC = 0, totalF = 0, totalKcal = 0, totalWeight = 0;
     const breakdown = p.foods.map(f => {
       const a = alimentos.find(x => x.id === f.alimentoId);
@@ -216,7 +233,11 @@ export function MealSheet({ open, onClose, mealType, mealLabel, date }: Props) {
                               {p.name}
                               {p.healthScore && <span className={cn("size-2 rounded-full shrink-0", HEALTH_DOT[p.healthScore])} />}
                             </p>
-                            <p className="text-xs text-muted-foreground">{p.kcal} kcal · {p.foods.length} ingredientes</p>
+                            <p className="text-xs text-muted-foreground">
+                              {isReadyPlato(p)
+                                ? `${Math.round(p.kcal)} kcal/100g · ${(p.ingredients ?? []).length} ingredientes`
+                                : `${p.kcal} kcal · ${p.foods.length} ingredientes`}
+                            </p>
                           </div>
                           <Plus className="size-4 shrink-0 text-muted-foreground" />
                         </div>

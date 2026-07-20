@@ -12,6 +12,7 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAllPages } from "@/lib/supabase/fetch-all";
 import { syncWrite } from "@/lib/supabase/sync";
+import { startGeoWatch, type StopWatch } from "@/lib/cardio/geo-tracker";
 
 // --- Helpers ---
 
@@ -152,13 +153,15 @@ function clearSnapshot() {
   }
 }
 
-function gpsErrorMessage(err: GeolocationPositionError): string {
-  switch (err.code) {
-    case err.PERMISSION_DENIED:
-      return "Sin acceso a tu ubicacion. Activa el permiso de GPS para esta app en los ajustes del navegador.";
-    case err.POSITION_UNAVAILABLE:
+// Mensaje segun el codigo de GeolocationPositionError (1/2/3). Los errores del
+// plugin nativo no traen codigo: se muestra su propio mensaje.
+function gpsErrorMessage(code?: number): string {
+  switch (code) {
+    case 1: // PERMISSION_DENIED
+      return "Sin acceso a tu ubicacion. Activa el permiso de GPS para esta app en los ajustes.";
+    case 2: // POSITION_UNAVAILABLE
       return "No se puede obtener tu ubicacion ahora mismo. Comprueba tu senal GPS.";
-    case err.TIMEOUT:
+    case 3: // TIMEOUT
       return "Tardamos demasiado en localizarte. Sal a espacio abierto e intentalo de nuevo.";
     default:
       return "No se pudo acceder al GPS.";
@@ -239,7 +242,11 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, supabase]);
 
-  const watchIdRef = useRef<number | null>(null);
+  // Funcion para detener el seguimiento (nativo o web), disponible cuando el
+  // arranque asincrono se resuelve. watchingRef refleja la intencion actual: si
+  // se detiene antes de resolver, el watcher se cierra en cuanto exista.
+  const stopWatchRef = useRef<StopWatch | null>(null);
+  const watchingRef = useRef(false);
 
   // Copia sincrona de coordenadas/distancia: stopTracking necesita leer los
   // valores finales sin recurrir a updaters de estado (deben ser puros; hacer
@@ -299,18 +306,12 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
   }, [isTracking, isPaused, acquireWakeLock]);
 
   const watchGPS = useCallback(() => {
-    if (!("geolocation" in navigator)) {
-      setGpsError("Este dispositivo no soporta geolocalizacion.");
-      return;
-    }
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
+    if (watchingRef.current) return; // ya hay un seguimiento activo
+    watchingRef.current = true;
+    startGeoWatch(
+      (p) => {
         setGpsError(null);
-        const newCoord: Coordinate = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          timestamp: pos.timestamp,
-        };
+        const newCoord: Coordinate = { lat: p.lat, lng: p.lng, timestamp: p.timestamp };
         const prev = coordinatesRef.current;
         if (prev.length > 0) {
           const last = prev[prev.length - 1];
@@ -320,19 +321,23 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
         setCoordinates(coordinatesRef.current);
         setDistanceKm(distanceKmRef.current);
       },
-      (err) => {
-        console.warn(`GPS (${err.code}): ${err.message}`);
-        setGpsError(gpsErrorMessage(err));
+      (e) => {
+        console.warn(`GPS: ${e.message}`);
+        setGpsError(e.code != null ? gpsErrorMessage(e.code) : e.message);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 },
-    );
+    )
+      .then((stop) => {
+        // Si se detuvo mientras arrancaba, cerrar el watcher ya mismo.
+        if (watchingRef.current) stopWatchRef.current = stop;
+        else stop();
+      })
+      .catch(() => setGpsError(gpsErrorMessage()));
   }, []);
 
   const clearGPS = useCallback(() => {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
+    watchingRef.current = false;
+    stopWatchRef.current?.();
+    stopWatchRef.current = null;
   }, []);
 
   // Snapshot de la sesion en curso: si el SO mata la PWA a mitad de ruta,

@@ -370,8 +370,10 @@ create table if not exists pantry_foods (
   protein numeric not null default 0,
   carbs numeric not null default 0,
   fat numeric not null default 0,
-  -- Ingredientes (solo nombres) de productos listos escaneados; informativo.
+  -- Ingredientes de productos listos escaneados ({name, grams?}[]); informativo.
   ingredients jsonb not null default '[]',
+  -- Tamaño de racion en g (0 = desconocido, se usa 100 g por defecto).
+  serving_g numeric not null default 0,
   is_favorite boolean not null default false,
   health_score text check (health_score in ('green', 'yellow', 'orange', 'red')),
   created_at timestamptz not null default now()
@@ -381,11 +383,20 @@ create table if not exists pantry_dishes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   name text not null,
-  -- Kcal totales del plato (suma de sus ingredientes).
+  -- Kcal del plato: totales para platos manuales, por 100 g para platos listos.
   kcal numeric not null default 0,
+  -- Macros por 100 g para platos "listos" (productos preparados escaneados);
+  -- 0 en platos manuales, que las calculan de sus ingredientes.
+  protein numeric not null default 0,
+  carbs numeric not null default 0,
+  fat numeric not null default 0,
   -- Ingredientes ({alimentoId, quantityG}[]); solo se leen en bloque para
   -- pintar la despensa, por eso jsonb en vez de una tabla aparte.
   foods jsonb not null default '[]',
+  -- Ingredientes de un producto listo escaneado ({name, grams?}[]); informativo.
+  ingredients jsonb not null default '[]',
+  -- Tamaño de racion en g (0 = desconocido, se usa 100 g por defecto).
+  serving_g numeric not null default 0,
   is_favorite boolean not null default false,
   health_score text check (health_score in ('green', 'yellow', 'orange', 'red')),
   created_at timestamptz not null default now()

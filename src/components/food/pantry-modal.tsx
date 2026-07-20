@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Search, X, Heart, Pencil, Trash2, Plus, Check, Barcode } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { usePantry, Alimento, Plato, PlatoFood } from "@/lib/store/pantry-store";
+import { usePantry, Alimento, Plato, PlatoFood, isReadyPlato } from "@/lib/store/pantry-store";
 import { BarcodeScanner } from "@/components/food/barcode-scanner";
 import { useToast } from "@/components/ui/toast";
 
@@ -478,7 +478,7 @@ export function PantryModal({ open, onClose }: Props) {
               {tab === "alimentos" && filteredAlimentos.map((alimento) => (
                 <div key={alimento.id} className="rounded-3xl border border-border bg-surface p-4">
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold flex items-center gap-2">
                         {alimento.name}
                         {alimento.healthScore === "green" && <span className="size-2.5 rounded-full bg-green-500" title="Muy sano" />}
@@ -492,17 +492,8 @@ export function PantryModal({ open, onClose }: Props) {
                         <span>C: {alimento.carbs}g</span>
                         <span>G: {alimento.fat}g</span>
                       </div>
-                      {alimento.ingredients && alimento.ingredients.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {alimento.ingredients.map((ing, i) => (
-                            <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                              {ing}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 shrink-0">
                       <button type="button" onClick={() => toggleFavoriteAlimento(alimento.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-red-500 transition-colors">
                         <Heart className={cn("size-4", alimento.isFavorite && "fill-red-500 text-red-500")} />
                       </button>
@@ -514,6 +505,17 @@ export function PantryModal({ open, onClose }: Props) {
                       </button>
                     </div>
                   </div>
+                  {/* Ingredientes a ancho completo (fuera de la fila de botones). */}
+                  {alimento.ingredients && alimento.ingredients.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {alimento.ingredients.map((ing, i) => (
+                        <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {ing.grams != null && <span className="text-foreground">{ing.grams}g </span>}
+                          {ing.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {editingId === alimento.id && (
                     <AlimentoForm 
                       initialData={alimento}
@@ -524,20 +526,50 @@ export function PantryModal({ open, onClose }: Props) {
                 </div>
               ))}
               
-              {tab === "platos" && filteredPlatos.map((plato) => (
+              {tab === "platos" && filteredPlatos.map((plato) => {
+                const ready = isReadyPlato(plato);
+                return (
                 <div key={plato.id} className="rounded-3xl border border-border bg-surface p-4">
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold flex items-center gap-2">
                         {plato.name}
                         {plato.healthScore === "green" && <span className="size-2.5 rounded-full bg-green-500" title="Muy sano" />}
                         {plato.healthScore === "yellow" && <span className="size-2.5 rounded-full bg-yellow-400" title="Moderado" />}
                         {plato.healthScore === "orange" && <span className="size-2.5 rounded-full bg-orange-500" title="Poco sano" />}
                         {plato.healthScore === "red" && <span className="size-2.5 rounded-full bg-red-500" title="Ultraprocesado" />}
+                        {ready && <span className="rounded-full bg-accent px-2 py-0.5 text-[9px] font-semibold text-accent-foreground">Listo</span>}
                       </p>
-                      <p className="text-xs text-muted-foreground mb-1">{plato.kcal} kcal totales</p>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {plato.foods.map((food, i) => {
+                      <p className="text-xs text-muted-foreground">
+                        {ready ? `${Math.round(plato.kcal)} kcal (100g)` : `${plato.kcal} kcal totales`}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button type="button" onClick={() => toggleFavoritePlato(plato.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-red-500 transition-colors">
+                        <Heart className={cn("size-4", plato.isFavorite && "fill-red-500 text-red-500")} />
+                      </button>
+                      {/* Los platos "listos" no se editan por ingredientes (no los
+                          tienen enlazados); se borran y se reescanean si hace falta. */}
+                      {!ready && (
+                        <button type="button" onClick={() => setEditingId(editingId === plato.id ? null : plato.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-foreground">
+                          <Pencil className="size-4" />
+                        </button>
+                      )}
+                      <button type="button" onClick={() => deletePlato(plato.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-red-500">
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {/* Ingredientes a ancho completo (fuera de la fila de botones). */}
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {ready
+                      ? (plato.ingredients ?? []).map((ing, i) => (
+                          <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {ing.grams != null && <span className="text-foreground">{ing.grams}g </span>}
+                            {ing.name}
+                          </span>
+                        ))
+                      : plato.foods.map((food, i) => {
                           const a = alimentos.find(x => x.id === food.alimentoId);
                           return (
                             <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
@@ -549,22 +581,9 @@ export function PantryModal({ open, onClose }: Props) {
                             </span>
                           );
                         })}
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <button type="button" onClick={() => toggleFavoritePlato(plato.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-red-500 transition-colors">
-                        <Heart className={cn("size-4", plato.isFavorite && "fill-red-500 text-red-500")} />
-                      </button>
-                      <button type="button" onClick={() => setEditingId(editingId === plato.id ? null : plato.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-foreground">
-                        <Pencil className="size-4" />
-                      </button>
-                      <button type="button" onClick={() => deletePlato(plato.id)} className="flex size-10 items-center justify-center text-muted-foreground hover:text-red-500">
-                        <Trash2 className="size-4" />
-                      </button>
-                    </div>
                   </div>
-                  {editingId === plato.id && (
-                    <PlatoForm 
+                  {!ready && editingId === plato.id && (
+                    <PlatoForm
                       initialData={plato}
                       alimentos={alimentos}
                       onSave={(data) => { updatePlato(plato.id, data); setEditingId(null); }}
@@ -572,7 +591,8 @@ export function PantryModal({ open, onClose }: Props) {
                     />
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
