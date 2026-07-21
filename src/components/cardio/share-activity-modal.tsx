@@ -16,6 +16,7 @@ import {
 import type { CardioSession } from "@/lib/store/cardio-store";
 import { useToast } from "@/components/ui/toast";
 import { useBackButton } from "@/lib/use-back-button";
+import { Capacitor } from "@capacitor/core";
 
 type ShareFormat = "story" | "square";
 
@@ -496,7 +497,40 @@ export function ShareActivityModal({
       }
     });
 
-  const downloadBlob = (blob: Blob) => {
+  const downloadBlob = async (blob: Blob) => {
+    if (Capacitor.isNativePlatform()) {
+      const { Filesystem, Directory } = await import("@capacitor/filesystem");
+      const reader = new FileReader();
+      return new Promise<void>((resolve, reject) => {
+        reader.onloadend = async () => {
+          try {
+            const base64data = reader.result as string;
+            const base64String = base64data.split(",")[1];
+            await Filesystem.writeFile({
+              path: `rogue-${session.dateISO.slice(0, 10)}-${Date.now()}.png`,
+              data: base64String,
+              directory: Directory.Documents,
+            });
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    if (isIOS) {
+      const file = new File([blob], `rogue-${session.dateISO.slice(0, 10)}.png`, { type: "image/png" });
+      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file] });
+        return;
+      }
+    }
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -519,8 +553,8 @@ export function ShareActivityModal({
       if (nav.canShare && nav.canShare({ files: [file] })) {
         await nav.share({ files: [file], title: "Mi actividad en Rogue" });
       } else {
-        downloadBlob(blob);
-        notify("Imagen descargada", "success");
+        await downloadBlob(blob);
+        notify("Imagen guardada en Documentos", "success");
       }
     } catch (err) {
       if ((err as Error)?.name !== "AbortError") notify("No se pudo compartir", "error");
@@ -534,8 +568,12 @@ export function ShareActivityModal({
     try {
       const blob = await toBlob();
       if (!blob) throw new Error("blob");
-      downloadBlob(blob);
-      notify("Imagen descargada", "success");
+      await downloadBlob(blob);
+      if (Capacitor.isNativePlatform()) {
+        notify("Guardado en carpeta Documentos", "success");
+      } else {
+        notify("Imagen descargada", "success");
+      }
     } catch {
       notify("No se pudo generar la imagen", "error");
     } finally {
