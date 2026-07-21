@@ -39,7 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ) : (
           <>
             <TopBar />
-            <main className="mx-auto w-full flex-1 overflow-y-auto px-5 pt-8 pb-28 md:max-w-2xl md:pb-12">
+            <main className="mx-auto w-full flex-1 overflow-y-auto px-5 pb-28 md:max-w-2xl md:pb-12">
               {children}
             </main>
             <CardioMiniPlayer />
