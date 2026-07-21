@@ -180,7 +180,7 @@ export function ExerciseSelectorModal({
       onClick={onClose}
     >
       {/* Mismo margen lateral (px-5) que las tarjetas de contenido. */}
-      <div className="w-full px-5 md:w-full md:max-w-lg md:px-0">
+      <div className="w-full md:max-w-lg">
         <div
           className="flex max-h-[90dvh] flex-col rounded-t-3xl border border-border bg-background shadow-2xl md:max-h-[80dvh] md:rounded-3xl"
           onClick={(e) => e.stopPropagation()}

@@ -83,7 +83,7 @@ function GoalsSheet({
       style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
-      <div className="w-full px-5 md:w-full md:max-w-lg md:px-0">
+      <div className="w-full md:max-w-lg">
         <div
           className="flex flex-col rounded-t-3xl border border-border bg-background shadow-2xl md:rounded-3xl"
           onClick={(e) => e.stopPropagation()}
