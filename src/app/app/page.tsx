@@ -13,9 +13,12 @@ import {
   Flame,
   Lock,
   Timer,
+  Trash2,
 } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { getDivisionLabel, getRankTier } from "@/lib/ranks";
 import { useRogue } from "@/lib/store/rogue-store";
@@ -214,7 +217,8 @@ function formatDayDetail(dateKey: string) {
 }
 
 function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
-  const { preferences } = useRogue();
+  const { preferences, deleteSession } = useRogue();
+  const { notify } = useToast();
   const days = useLastSevenDays(sessions);
   const trainedCount = days.filter((d) => d.trained).length;
 
@@ -222,6 +226,8 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
   const [expanded, setExpanded] = useState(false);
   const [cursor, setCursor] = useState({ year: now.getFullYear(), month: now.getMonth() });
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // Entreno pendiente de confirmar borrado (null = dialogo cerrado).
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const monthDays = useMonthDays(sessions, cursor.year, cursor.month);
   const monthTrainedCount = monthDays.filter((d) => d.trained).length;
   const sessionsByDay = useSessionsByDay(sessions);
@@ -367,8 +373,8 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
                     0,
                   );
                   return (
-                    <div key={s.id} className="flex items-center justify-between">
-                      <div>
+                    <div key={s.id} className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium">{s.dayLabel}</p>
                         <p className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
                           {s.durationSec !== undefined && (
@@ -389,6 +395,14 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
                           {formatWeight(volume, preferences.unit)} {preferences.unit}
                         </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDelete(s.id)}
+                        aria-label="Eliminar entreno"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
                     </div>
                   );
                 })}
@@ -397,6 +411,21 @@ function WeekCalendarCard({ sessions }: { sessions: WorkoutSession[] }) {
           )}
         </>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="¿Eliminar este entreno?"
+        description="Se borrará del historial de forma permanente, con sus series. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          if (pendingDelete) {
+            deleteSession(pendingDelete);
+            notify("Entreno eliminado", "success");
+          }
+          setPendingDelete(null);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

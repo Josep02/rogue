@@ -17,6 +17,7 @@ import {
 import { PastelCard } from "@/components/ui/pastel-card";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import { useCardio } from "@/lib/store/cardio-store";
 import { useRogue } from "@/lib/store/rogue-store";
 
@@ -94,6 +95,7 @@ export default function CardioPage() {
     deleteSession,
   } = useCardio();
   const { profile } = useRogue();
+  const { notify } = useToast();
 
   // Ruta pendiente de confirmar borrado (null = dialogo cerrado).
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -306,7 +308,10 @@ export default function CardioPage() {
         description="Se borrará del historial de forma permanente. Esta acción no se puede deshacer."
         confirmLabel="Eliminar"
         onConfirm={() => {
-          if (pendingDelete) deleteSession(pendingDelete);
+          if (pendingDelete) {
+            deleteSession(pendingDelete);
+            notify("Ruta eliminada", "success");
+          }
           setPendingDelete(null);
         }}
         onCancel={() => setPendingDelete(null)}

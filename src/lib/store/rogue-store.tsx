@@ -134,6 +134,9 @@ type RogueContextValue = {
     durationSec?: number,
     notes?: ExerciseNoteInput[],
   ) => LogResult;
+  /** Borra un entreno del historial (optimista + delete en Supabase, que
+   *  arrastra series y notas por el ON DELETE CASCADE). */
+  deleteSession: (id: string) => void;
   /** Notas/flags de ejercicio guardadas (para historial y recordatorios). */
   exerciseNotes: ExerciseNote[];
   /** Marca como vistos los recordatorios pendientes de estos ejercicios, para
@@ -793,6 +796,33 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
     [state.sessions, state.profile.bodyweightKg, state.profile.sex, supabase],
   );
 
+  const deleteSession = useCallback(
+    (id: string) => {
+      // Optimista: fuera del estado al instante (los rangos se recalculan solos
+      // via useMemo sobre state.sessions). Tambien se quitan sus notas locales.
+      setState((prev) => ({
+        ...prev,
+        sessions: prev.sessions.filter((s) => s.id !== id),
+        exerciseNotes: prev.exerciseNotes.filter((n) => n.sessionId !== id),
+      }));
+
+      const userId = userIdRef.current;
+      if (userId) {
+        syncWrite("el borrado del entreno", async () => {
+          // El ON DELETE CASCADE de workout_sets y exercise_notes arrastra las
+          // filas hijas al borrar la sesion.
+          const { error } = await supabase
+            .from("workout_sessions")
+            .delete()
+            .eq("id", id)
+            .eq("user_id", userId);
+          if (error) throw error;
+        });
+      }
+    },
+    [supabase],
+  );
+
   // Marca como vistos los recordatorios pendientes de estos ejercicios para que
   // no vuelvan a saltar. Actualiza estado local y Supabase (best-effort).
   const acknowledgeReminders = useCallback(
@@ -920,6 +950,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
       updatePreferences,
       updateUsername,
       logSession,
+      deleteSession,
       exerciseNotes: state.exerciseNotes,
       acknowledgeReminders,
       saveRoutine,
@@ -942,6 +973,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
       updatePreferences,
       updateUsername,
       logSession,
+      deleteSession,
       acknowledgeReminders,
       saveRoutine,
       resetAll,
