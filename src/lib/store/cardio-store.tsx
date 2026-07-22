@@ -64,6 +64,8 @@ export type CardioContextValue = {
   minimize: () => void;
   maximize: () => void;
   openLocationSettings: () => void;
+  /** Borra una ruta del historial (optimista + delete en Supabase). */
+  deleteSession: (id: string) => void;
 };
 
 type CardioRow = {
@@ -120,6 +122,19 @@ async function insertCardioSession(
     duration_sec: session.durationSec,
     coordinates: session.coordinates,
   });
+  if (error) throw error;
+}
+
+async function deleteCardioSession(
+  supabase: SupabaseClient,
+  userId: string,
+  id: string,
+) {
+  const { error } = await supabase
+    .from("cardio_sessions")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
@@ -502,6 +517,21 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
   const minimize = useCallback(() => setIsMinimized(true), []);
   const maximize = useCallback(() => setIsMinimized(false), []);
 
+  const deleteSession = useCallback(
+    (id: string) => {
+      // Optimista: fuera de la lista al instante; el borrado en Supabase va por
+      // la cola de sync (si falla tras reintentos, SyncErrorToast avisa).
+      setHistory((prev) => prev.filter((s) => s.id !== id));
+      const userId = userIdRef.current;
+      if (userId) {
+        syncWrite("el borrado de la ruta", () =>
+          deleteCardioSession(supabase, userId, id),
+        );
+      }
+    },
+    [supabase],
+  );
+
   return (
     <CardioContext.Provider
       value={{
@@ -522,6 +552,7 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
         minimize,
         maximize,
         openLocationSettings,
+        deleteSession,
       }}
     >
       {children}

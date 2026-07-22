@@ -8,14 +8,15 @@ import {
   Timer,
   TrendingUp,
   Play,
-  ChevronRight,
   Activity,
   Pencil,
   Minus,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useCardio } from "@/lib/store/cardio-store";
 import { useRogue } from "@/lib/store/rogue-store";
 
@@ -90,8 +91,12 @@ export default function CardioPage() {
     history,
     distanceKm: liveDistanceKm,
     durationSec: liveDurationSec,
+    deleteSession,
   } = useCardio();
   const { profile } = useRogue();
+
+  // Ruta pendiente de confirmar borrado (null = dialogo cerrado).
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   // Objetivo de pasos editable (guardado en este dispositivo).
   const [stepGoal, setStepGoal] = useState(() => {
@@ -281,18 +286,31 @@ export default function CardioPage() {
                     </p>
                   </div>
                 </Link>
-                <Link
-                  href={`/app/cardio/actividad/${session.id}`}
-                  aria-label="Ver actividad"
-                  className="flex size-10 shrink-0 items-center justify-center pr-2 text-muted-foreground"
+                <button
+                  type="button"
+                  onClick={() => setPendingDelete(session.id)}
+                  aria-label="Eliminar ruta"
+                  className="mr-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
-                  <ChevronRight className="size-5" />
-                </Link>
+                  <Trash2 className="size-5" />
+                </button>
               </div>
             ))
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="¿Eliminar esta ruta?"
+        description="Se borrará del historial de forma permanente. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        onConfirm={() => {
+          if (pendingDelete) deleteSession(pendingDelete);
+          setPendingDelete(null);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
