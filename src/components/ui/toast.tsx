@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -40,9 +41,14 @@ const AUTO_DISMISS_MS = 3200;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [portalTarget] = useState<Element | null>(() =>
-    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
-  );
+  // #app-shell no existe cuando este provider se monta: HydrationGate muestra un
+  // loader y solo monta AppShell (que tiene ese id) tras hidratar. Por eso NO se
+  // puede cachear el target una vez al montar (quedaria null para siempre y los
+  // toasts nunca se pintarian). Se resuelve en cada render, ya con el DOM listo;
+  // los toasts se disparan siempre por interaccion, mucho despues de la hidratacion.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const portalTarget = mounted ? document.getElementById("app-shell") : null;
   const idRef = useRef(0);
 
   const dismiss = useCallback((id: number) => {
