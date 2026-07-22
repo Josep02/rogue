@@ -17,7 +17,15 @@ type BgLocation = {
   longitude: number;
   time?: number | null;
 };
-type BgError = { message?: string };
+// El plugin nativo pone code = "NOT_AUTHORIZED" cuando le falta el permiso de
+// ubicacion (denegado, o solo "mientras se usa" cuando hace falta background).
+type BgError = { code?: string; message?: string };
+// Estados que devuelve la API de permisos de Capacitor.
+type PermissionState =
+  | "prompt"
+  | "prompt-with-rationale"
+  | "granted"
+  | "denied";
 interface BgGeoPlugin {
   addWatcher(
     options: {
@@ -30,13 +38,71 @@ interface BgGeoPlugin {
     callback: (position?: BgLocation, error?: BgError) => void,
   ): Promise<string>;
   removeWatcher(options: { id: string }): Promise<void>;
+  // checkPermissions/requestPermissions los genera Capacitor para cualquier
+  // plugin que declare @Permission. El alias "location" del plugin agrupa
+  // ACCESS_*_LOCATION y (por el patch de este repo) POST_NOTIFICATIONS, asi
+  // que una sola solicitud cubre ubicacion + notificacion del servicio.
+  checkPermissions(): Promise<{ location: PermissionState }>;
+  requestPermissions(): Promise<{ location: PermissionState }>;
+  // Abre los ajustes de la app (para conceder "Permitir todo el tiempo", que el
+  // sistema no ofrece desde el dialogo in-app en Android 10+).
+  openSettings(): Promise<void>;
 }
 
 const BackgroundGeolocation =
   registerPlugin<BgGeoPlugin>("BackgroundGeolocation");
 
+/**
+ * Pide los permisos de ubicacion (y notificacion en Android 13+) ANTES de
+ * arrancar el watcher, y espera a que el usuario responda.
+ *
+ * Es lo que evita el bug del primer arranque: si `addWatcher` fuera quien
+ * pidiese el permiso (requestPermissions: true), el dialogo del sistema manda
+ * la app a segundo plano y el foreground service falla al promoverse — la
+ * grabacion en background no arranca hasta pausar/reanudar (que vuelve a llamar
+ * a addWatcher con los permisos ya concedidos). Solicitandolos aqui primero, el
+ * addWatcher posterior corre con la app en primer plano y los permisos ya dados,
+ * y el servicio arranca a la primera.
+ *
+ * Devuelve true si quedaron concedidos. En web no aplica (navigator.geolocation
+ * pide permiso al usarse), asi que resuelve true sin hacer nada.
+ */
+export async function ensureGeoPermissions(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return true;
+  try {
+    let status = await BackgroundGeolocation.checkPermissions();
+    if (status.location !== "granted") {
+      status = await BackgroundGeolocation.requestPermissions();
+    }
+    return status.location === "granted";
+  } catch {
+    // Version del plugin sin API de permisos: dejamos que addWatcher los pida
+    // (comportamiento anterior); no bloqueamos el arranque.
+    return true;
+  }
+}
+
+/**
+ * Abre los ajustes del sistema para esta app, donde el usuario puede conceder
+ * "Permitir todo el tiempo". Solo tiene efecto en nativo; en web no hay nada
+ * que abrir (el navegador gestiona el permiso). No lanza.
+ */
+export async function openLocationSettings(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    await BackgroundGeolocation.openSettings();
+  } catch {
+    /* si el plugin no lo soporta, no hay accion posible */
+  }
+}
+
 export type GeoPosition = { lat: number; lng: number; timestamp: number };
-export type GeoError = { code?: number; message: string };
+export type GeoError = {
+  code?: number;
+  message: string;
+  /** El permiso de ubicacion falta o es insuficiente: conviene ofrecer ajustes. */
+  permissionDenied?: boolean;
+};
 export type StopWatch = () => void;
 
 /** Arranca el seguimiento. Devuelve una funcion para detenerlo. */
@@ -57,7 +123,10 @@ export async function startGeoWatch(
       },
       (location, error) => {
         if (error) {
-          onError({ message: error.message ?? "No se pudo acceder al GPS." });
+          onError({
+            message: error.message ?? "No se pudo acceder al GPS.",
+            permissionDenied: error.code === "NOT_AUTHORIZED",
+          });
           return;
         }
         if (location) {
@@ -86,7 +155,12 @@ export async function startGeoWatch(
         lng: pos.coords.longitude,
         timestamp: pos.timestamp,
       }),
-    (err) => onError({ code: err.code, message: err.message }),
+    (err) =>
+      onError({
+        code: err.code,
+        message: err.message,
+        permissionDenied: err.code === 1, // PERMISSION_DENIED
+      }),
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 },
   );
   return () => navigator.geolocation.clearWatch(wid);

@@ -12,7 +12,12 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAllPages } from "@/lib/supabase/fetch-all";
 import { syncWrite } from "@/lib/supabase/sync";
-import { startGeoWatch, type StopWatch } from "@/lib/cardio/geo-tracker";
+import {
+  ensureGeoPermissions,
+  openLocationSettings,
+  startGeoWatch,
+  type StopWatch,
+} from "@/lib/cardio/geo-tracker";
 
 // --- Helpers ---
 
@@ -50,12 +55,15 @@ export type CardioContextValue = {
   durationSec: number;
   history: CardioSession[];
   gpsError: string | null;
+  /** El error de GPS es por falta de permiso: la UI ofrece abrir ajustes. */
+  gpsNeedsSettings: boolean;
   startTracking: () => void;
   pauseTracking: () => void;
   resumeTracking: () => void;
   stopTracking: () => void;
   minimize: () => void;
   maximize: () => void;
+  openLocationSettings: () => void;
 };
 
 type CardioRow = {
@@ -188,6 +196,7 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [gpsNeedsSettings, setGpsNeedsSettings] = useState(false);
 
   const userIdRef = useRef<string | null>(null);
 
@@ -308,30 +317,47 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
   const watchGPS = useCallback(() => {
     if (watchingRef.current) return; // ya hay un seguimiento activo
     watchingRef.current = true;
-    startGeoWatch(
-      (p) => {
-        setGpsError(null);
-        const newCoord: Coordinate = { lat: p.lat, lng: p.lng, timestamp: p.timestamp };
-        const prev = coordinatesRef.current;
-        if (prev.length > 0) {
-          const last = prev[prev.length - 1];
-          distanceKmRef.current += haversineKm(last.lat, last.lng, newCoord.lat, newCoord.lng);
-        }
-        coordinatesRef.current = [...prev, newCoord];
-        setCoordinates(coordinatesRef.current);
-        setDistanceKm(distanceKmRef.current);
-      },
-      (e) => {
-        console.warn(`GPS: ${e.message}`);
-        setGpsError(e.code != null ? gpsErrorMessage(e.code) : e.message);
-      },
-    )
-      .then((stop) => {
+    // Pide permisos (y espera) ANTES de addWatcher: con la app en primer plano
+    // y los permisos ya concedidos, el foreground service nativo arranca a la
+    // primera. Ver ensureGeoPermissions() para el motivo (bug del 1.er arranque).
+    (async () => {
+      const granted = await ensureGeoPermissions();
+      // Se detuvo mientras se pedian los permisos: no arrancar nada.
+      if (!watchingRef.current) return;
+      if (!granted) {
+        watchingRef.current = false;
+        setGpsError(gpsErrorMessage(1)); // PERMISSION_DENIED
+        setGpsNeedsSettings(true);
+        return;
+      }
+      try {
+        const stop = await startGeoWatch(
+          (p) => {
+            setGpsError(null);
+            setGpsNeedsSettings(false);
+            const newCoord: Coordinate = { lat: p.lat, lng: p.lng, timestamp: p.timestamp };
+            const prev = coordinatesRef.current;
+            if (prev.length > 0) {
+              const last = prev[prev.length - 1];
+              distanceKmRef.current += haversineKm(last.lat, last.lng, newCoord.lat, newCoord.lng);
+            }
+            coordinatesRef.current = [...prev, newCoord];
+            setCoordinates(coordinatesRef.current);
+            setDistanceKm(distanceKmRef.current);
+          },
+          (e) => {
+            console.warn(`GPS: ${e.message}`);
+            setGpsError(e.code != null ? gpsErrorMessage(e.code) : e.message);
+            if (e.permissionDenied) setGpsNeedsSettings(true);
+          },
+        );
         // Si se detuvo mientras arrancaba, cerrar el watcher ya mismo.
         if (watchingRef.current) stopWatchRef.current = stop;
         else stop();
-      })
-      .catch(() => setGpsError(gpsErrorMessage()));
+      } catch {
+        setGpsError(gpsErrorMessage());
+      }
+    })();
   }, []);
 
   const clearGPS = useCallback(() => {
@@ -362,6 +388,7 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     setDistanceKm(0);
     setDurationSec(0);
     setGpsError(null);
+    setGpsNeedsSettings(false);
     accumulatedSecRef.current = 0;
     runningSinceRef.current = Date.now();
     acquireWakeLock();
@@ -394,6 +421,7 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     setIsPaused(false);
     setIsMinimized(false);
     setGpsError(null);
+    setGpsNeedsSettings(false);
     releaseWakeLock();
     clearGPS();
     clearSnapshot();
@@ -486,12 +514,14 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
         durationSec,
         history,
         gpsError,
+        gpsNeedsSettings,
         startTracking,
         pauseTracking,
         resumeTracking,
         stopTracking,
         minimize,
         maximize,
+        openLocationSettings,
       }}
     >
       {children}

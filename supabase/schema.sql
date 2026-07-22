@@ -115,6 +115,28 @@ create trigger on_auth_user_created
 -- callable con la clave anonima permitiria a cualquiera enumerar usernames
 -- validos y cosechar los emails asociados.
 
+-- profiles.email es una copia desnormalizada de auth.users.email. handle_new_user
+-- solo la rellena en el alta; este trigger la mantiene sincronizada cuando el
+-- usuario cambia su email en Auth (si no, el login por username resolveria a un
+-- email obsoleto y dejaria de funcionar).
+create or replace function sync_profile_email()
+returns trigger as $$
+begin
+  if new.email is distinct from old.email then
+    update public.profiles
+      set email = new.email,
+          updated_at = now()
+      where user_id = new.id;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_auth_user_email_changed on auth.users;
+create trigger on_auth_user_email_changed
+  after update of email on auth.users
+  for each row execute procedure sync_profile_email();
+
 -- ============================================================
 -- 3. Rutinas propias (editor de rutinas, drag & drop)
 -- ============================================================

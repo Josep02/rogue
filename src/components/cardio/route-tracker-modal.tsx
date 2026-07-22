@@ -38,10 +38,12 @@ export function RouteTrackerModal() {
     distanceKm,
     durationSec,
     gpsError,
+    gpsNeedsSettings,
     pauseTracking,
     resumeTracking,
     stopTracking,
     minimize,
+    openLocationSettings,
   } = useCardio();
 
   // "Atrás" (APK/PWA) minimiza la ruta en vez de sacar la app al home.
@@ -75,9 +77,19 @@ export function RouteTrackerModal() {
         </div>
 
         {gpsError && (
-          <div className="absolute inset-x-5 top-[calc(env(safe-area-inset-top)+4.5rem)] z-[400] flex items-start gap-2 rounded-2xl bg-red-600 px-4 py-3 text-white shadow-lg backdrop-blur-md">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-            <p className="text-xs leading-snug">{gpsError}</p>
+          <div className="absolute inset-x-5 top-[calc(env(safe-area-inset-top)+4.5rem)] z-[400] rounded-2xl bg-red-600 px-4 py-3 text-white shadow-lg backdrop-blur-md">
+            <div className="flex items-start gap-2">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+              <p className="text-xs leading-snug">{gpsError}</p>
+            </div>
+            {gpsNeedsSettings && (
+              <button
+                onClick={openLocationSettings}
+                className="mt-2.5 w-full rounded-xl bg-white/20 px-3 py-2 text-xs font-semibold backdrop-blur-md transition-colors hover:bg-white/30"
+              >
+                Abrir ajustes de la app
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+// Carga las credenciales de firma de release desde android/keystore.properties
+// (fuera del control de versiones, ver .gitignore). Si el fichero no existe
+// —p.ej. al clonar el repo o en CI sin secretos— se compila sin firma release
+// y `release` cae a la firma debug, para que el build no reviente.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.rogue.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -12,6 +23,17 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            release {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     androidResources {
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -22,6 +44,12 @@ android {
     }
     buildTypes {
         release {
+            // Firma con la key de release si hay keystore.properties; si no,
+            // Gradle usa la firma debug por defecto (solo para builds locales,
+            // NUNCA para distribuir).
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
