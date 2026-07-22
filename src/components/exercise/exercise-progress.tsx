@@ -81,7 +81,9 @@ export function ExerciseStatsPanel({ exercise }: { exercise: Exercise }) {
       ? `${bestBodyweightReps} reps`
       : "—";
 
+  /* eslint-disable react-hooks/purity */
   const now = Date.now();
+  /* eslint-enable react-hooks/purity */
   const volumen4Semanas = history
     .filter((s) => now - new Date(s.dateISO).getTime() <= FOUR_WEEKS_MS)
     .reduce((sum, s) => sum + s.volumenKg, 0);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, Circle, X, Plus, Trash2, Search, Pencil, Check } from "lucide-react";
+import { X, Plus, Trash2, Search, Pencil, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { usePantry, isReadyPlato } from "@/lib/store/pantry-store";
@@ -26,15 +26,14 @@ type Props = {
 export function MealSheet({ open, onClose, mealType, mealLabel, date }: Props) {
   const { alimentos, platos } = usePantry();
   const { entriesForDay, addEntry, removeEntry, updateEntryQuantity, updateEntry } = useMeals();
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
+  const [portalTarget] = useState<Element | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
+  );
   const [view, setView] = useState<"list" | "add">("list");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    setPortalTarget(document.getElementById("app-shell"));
-  }, []);
-
-  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!open) { setView("list"); setSearch(""); }
   }, [open]);
 
@@ -271,7 +270,7 @@ export function MealSheet({ open, onClose, mealType, mealLabel, date }: Props) {
                 )}
 
                 {filteredPlatos.length === 0 && filteredAlimentos.length === 0 && (
-                  <p className="py-8 text-center text-sm text-muted-foreground">Sin resultados para "{search}"</p>
+                  <p className="py-8 text-center text-sm text-muted-foreground">Sin resultados para &ldquo;{search}&rdquo;</p>
                 )}
               </div>
             )}
@@ -291,7 +290,7 @@ function EntryRow({
   macros: ReturnType<typeof entryMacros>;
   onRemove: (id: string) => void;
   onQuantityChange: (id: string, q: number) => void;
-  onUpdateEntry: (id: string, data: any) => void;
+  onUpdateEntry: (id: string, data: Partial<MealEntry>) => void;
 }) {
   const isPlato = entry.barcode?.startsWith("__plato__:");
   const breakdown = useMemo(() => {
@@ -311,14 +310,16 @@ function EntryRow({
   // State for Plato breakdown
   const [draftBreakdown, setDraftBreakdown] = useState<Record<string, string>>({});
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setDraftQty(entry.quantityG.toString());
     if (isPlato) {
       const obj: Record<string, string> = {};
-      breakdown.forEach((b: any, i: number) => obj[i] = b.quantityG.toString());
+      breakdown.forEach((b: { name: string; quantityG: number }, i: number) => obj[i] = b.quantityG.toString());
       setDraftBreakdown(obj);
     }
   }, [entry.quantityG, breakdown, isPlato]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSaveSimple = () => {
     const n = Number(draftQty);
@@ -329,7 +330,7 @@ function EntryRow({
   const handleSavePlato = () => {
     // Recalculate totals
     let totalKcal = 0, totalP = 0, totalC = 0, totalF = 0, totalQty = 0;
-    const newBreakdown = breakdown.map((b: any, i: number) => {
+    const newBreakdown = breakdown.map((b: { kcal100: number; p100: number; c100: number; f100: number }, i: number) => {
       const n = Number(draftBreakdown[i]);
       const qty = isNaN(n) || n < 0 ? 0 : Math.round(n);
       const factor = qty / 100;
@@ -360,13 +361,13 @@ function EntryRow({
     setDraftQty(entry.quantityG.toString());
     if (isPlato) {
       const obj: Record<string, string> = {};
-      breakdown.forEach((b: any, i: number) => obj[i] = b.quantityG.toString());
+      breakdown.forEach((b: { name: string; quantityG: number }, i: number) => obj[i] = b.quantityG.toString());
       setDraftBreakdown(obj);
     }
     setEditing(false);
   };
 
-  const totalWeightStr = isPlato ? Math.round(breakdown.reduce((acc: number, b: any) => acc + b.quantityG, 0)) + "g" : `${entry.quantityG}g`;
+  const totalWeightStr = isPlato ? Math.round(breakdown.reduce((acc: number, b: { quantityG: number }) => acc + b.quantityG, 0)) + "g" : `${entry.quantityG}g`;
 
   const handleToggleEaten = () => {
     onUpdateEntry(entry.id, { eaten: !entry.eaten });
@@ -442,7 +443,7 @@ function EntryRow({
       {editing && isPlato && (
         <div className="flex flex-col gap-2 border-t border-border">
           <div className="p-4 flex flex-col gap-2">
-            {breakdown.map((b: any, i: number) => (
+            {breakdown.map((b: { name: string; quantityG: number }, i: number) => (
               <div key={i} className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground flex-1 truncate">{b.name}</span>
                 <input

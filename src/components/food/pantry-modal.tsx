@@ -59,6 +59,7 @@ function AlimentoForm({
     const car = Number(carbs) || 0;
     const fa = Number(fat) || 0;
     if (k > 0 || p > 0 || car > 0 || fa > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHealthScore(estimateHealthScore(k, p, car, fa));
     }
   }, [kcal, protein, carbs, fat, isManualScore, scanning]);
@@ -213,6 +214,7 @@ function PlatoForm({
   useEffect(() => {
     if (isManualScore || weight === 0) return;
     const factor = 100 / weight;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHealthScore(estimateHealthScore(totalKcal * factor, totalP * factor, totalC * factor, totalF * factor));
   }, [totalKcal, weight, totalP, totalC, totalF, isManualScore]);
 
@@ -357,10 +359,9 @@ export function PantryModal({ open, onClose }: Props) {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
-  useEffect(() => {
-    setPortalTarget(document.getElementById("app-shell"));
-  }, []);
+  const [portalTarget] = useState<Element | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
+  );
 
   // Sort: favorites first, then by name
   const filteredAlimentos = useMemo(() => {

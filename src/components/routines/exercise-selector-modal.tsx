@@ -153,12 +153,14 @@ export function ExerciseSelectorModal({
   const [filters, setFilters] = useState<ExerciseFilterValue>({});
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const prevOpenRef = useRef(open);
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
       setQuery("");
       setFilters({});
       setTimeout(() => inputRef.current?.focus(), 50);
     }
+    prevOpenRef.current = open;
   }, [open]);
 
   const filtered = useMemo(
@@ -166,10 +168,9 @@ export function ExerciseSelectorModal({
     [query, filters],
   );
 
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
-  useEffect(() => {
-    setPortalTarget(document.getElementById("app-shell"));
-  }, []);
+  const [portalTarget] = useState<Element | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
+  );
 
   if (!open) return null;
 

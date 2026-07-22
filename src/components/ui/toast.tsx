@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -41,12 +40,10 @@ const AUTO_DISMISS_MS = 3200;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
+  const [portalTarget] = useState<Element | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
+  );
   const idRef = useRef(0);
-
-  useEffect(() => {
-    setPortalTarget(document.getElementById("app-shell"));
-  }, []);
 
   const dismiss = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));

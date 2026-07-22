@@ -11,3 +11,88 @@ index 2d88a67..983a1df 100644
          }
      }
      lintOptions {
+diff --git a/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocation.java b/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocation.java
+index a92fcf9..43412f0 100644
+--- a/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocation.java
++++ b/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocation.java
+@@ -42,7 +42,8 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+                 @Permission(
+                         strings = {
+                                 Manifest.permission.ACCESS_COARSE_LOCATION,
+-                                Manifest.permission.ACCESS_FINE_LOCATION
++                                Manifest.permission.ACCESS_FINE_LOCATION,
++                                Manifest.permission.POST_NOTIFICATIONS
+                         },
+                         alias = "location"
+                 )
+diff --git a/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocationService.java b/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocationService.java
+index fafbb86..d7d9f9c 100644
+--- a/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocationService.java
++++ b/node_modules/@capacitor-community/background-geolocation/android/src/main/java/com/equimaps/capacitor_background_geolocation/BackgroundGeolocationService.java
+@@ -8,6 +8,8 @@ import android.location.Location;
+ import android.os.Binder;
+ import android.os.Build;
+ import android.os.IBinder;
++import android.os.PowerManager;
++import android.content.Context;
+ 
+ import com.getcapacitor.Logger;
+ import com.google.android.gms.location.FusedLocationProviderClient;
+@@ -41,6 +43,7 @@ public class BackgroundGeolocationService extends Service {
+         public Notification backgroundNotification;
+     }
+     private HashSet<Watcher> watchers = new HashSet<Watcher>();
++    private PowerManager.WakeLock wakeLock = null;
+ 
+     @Override
+     public IBinder onBind(Intent intent) {
+@@ -57,6 +60,10 @@ public class BackgroundGeolocationService extends Service {
+             watcher.client.removeLocationUpdates(watcher.locationCallback);
+         }
+         watchers = new HashSet<Watcher>();
++        if (wakeLock != null && wakeLock.isHeld()) {
++            wakeLock.release();
++            wakeLock = null;
++        }
+         stopSelf();
+         return false;
+     }
+@@ -124,6 +131,14 @@ public class BackgroundGeolocationService extends Service {
+                 );
+             } catch (SecurityException ignore) {}
+ 
++            if (wakeLock == null) {
++                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
++                if (pm != null) {
++                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Rogue:BackgroundGeolocation");
++                    wakeLock.acquire();
++                }
++            }
++
+             // Promote the service to the foreground if necessary.
+             // Ideally we would only call 'startForeground' if the service is not already
+             // foregrounded. Unfortunately, 'getForegroundServiceType' was only introduced
+@@ -135,7 +150,11 @@ public class BackgroundGeolocationService extends Service {
+                     // This method has been known to fail due to weird
+                     // permission bugs, so we prevent any exceptions from
+                     // crashing the app. See issue #86.
+-                    startForeground(NOTIFICATION_ID, backgroundNotification);
++                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
++                        startForeground(NOTIFICATION_ID, backgroundNotification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
++                    } else {
++                        startForeground(NOTIFICATION_ID, backgroundNotification);
++                    }
+                 } catch (Exception exception) {
+                     Logger.error("Failed to foreground service", exception);
+                 }
+@@ -149,6 +168,10 @@ public class BackgroundGeolocationService extends Service {
+                     watchers.remove(watcher);
+                     if (getNotification() == null) {
+                         stopForeground(true);
++                        if (wakeLock != null && wakeLock.isHeld()) {
++                            wakeLock.release();
++                            wakeLock = null;
++                        }
+                     }
+                     return;
+                 }

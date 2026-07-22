@@ -16,7 +16,9 @@ import { App } from "@capacitor/app";
  */
 export function useBackButton(active: boolean, onBack: () => void) {
   const onBackRef = useRef(onBack);
-  onBackRef.current = onBack;
+  useEffect(() => {
+    onBackRef.current = onBack;
+  });
 
   useEffect(() => {
     if (!active || typeof window === "undefined") return;

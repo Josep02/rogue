@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 
 type Props = {
@@ -23,10 +23,9 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
-  useEffect(() => {
-    setPortalTarget(document.getElementById("app-shell"));
-  }, []);
+  const [portalTarget] = useState<Element | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
+  );
 
   if (!open) return null;
 

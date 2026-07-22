@@ -461,12 +461,14 @@ export function CardioProvider({ children }: { children: React.ReactNode }) {
     // Hidratacion unica desde localStorage tras el montaje (protegida por
     // recoveredRef). Va en efecto a proposito: en el initializer romperia la
     // hidratacion SSR al no existir localStorage en servidor.
+    /* eslint-disable react-hooks/set-state-in-effect */
     setCoordinates(snap.coordinates);
     setDistanceKm(snap.distanceKm);
     setDurationSec(duration);
     setIsPaused(true);
     setIsMinimized(true);
     setIsTracking(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [hydrated, isTracking]);
 
   const minimize = useCallback(() => setIsMinimized(true), []);

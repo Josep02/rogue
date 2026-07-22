@@ -41,14 +41,11 @@ function isIos(): boolean {
  */
 export function InstallPwaButton() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
-  const [ios, setIos] = useState(false);
+  const [installed, setInstalled] = useState(() => isStandalone());
+  const [ios] = useState(() => isIos());
   const [showIosHint, setShowIosHint] = useState(false);
 
   useEffect(() => {
-    setInstalled(isStandalone());
-    setIos(isIos());
-
     const onPrompt = (e: Event) => {
       e.preventDefault(); // evita el mini-infobar por defecto de Chrome
       setDeferred(e as BeforeInstallPromptEvent);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Flame,
@@ -13,13 +13,11 @@ import {
   Pencil,
   Minus,
   Plus,
-  Share2,
 } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { Button } from "@/components/ui/button";
-import { useCardio, type CardioSession } from "@/lib/store/cardio-store";
+import { useCardio } from "@/lib/store/cardio-store";
 import { useRogue } from "@/lib/store/rogue-store";
-import { ShareActivityModal } from "@/components/cardio/share-activity-modal";
 
 /** Zancada media (m) para estimar pasos desde la distancia recorrida.
  *  La web no tiene acceso al podometro del telefono, asi que los pasos se
@@ -96,18 +94,15 @@ export default function CardioPage() {
   const { profile } = useRogue();
 
   // Objetivo de pasos editable (guardado en este dispositivo).
-  const [stepGoal, setStepGoal] = useState(DEFAULT_STEP_GOAL);
-  const [editingGoal, setEditingGoal] = useState(false);
-  // Actividad seleccionada para compartir (abre el editor de imagen).
-  const [shareSession, setShareSession] = useState<CardioSession | null>(null);
-  useEffect(() => {
+  const [stepGoal, setStepGoal] = useState(() => {
     try {
-      const raw = localStorage.getItem(STEP_GOAL_KEY);
-      if (raw) setStepGoal(Number(raw) || DEFAULT_STEP_GOAL);
+      const raw = typeof window !== "undefined" ? localStorage.getItem(STEP_GOAL_KEY) : null;
+      return raw ? Number(raw) || DEFAULT_STEP_GOAL : DEFAULT_STEP_GOAL;
     } catch {
-      /* valor por defecto */
+      return DEFAULT_STEP_GOAL;
     }
-  }, []);
+  });
+  const [editingGoal, setEditingGoal] = useState(false);
   const updateStepGoal = (g: number) => {
     setStepGoal(g);
     try {
@@ -286,16 +281,6 @@ export default function CardioPage() {
                     </p>
                   </div>
                 </Link>
-                {session.coordinates.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setShareSession(session)}
-                    aria-label="Compartir actividad"
-                    className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-                  >
-                    <Share2 className="size-5" />
-                  </button>
-                )}
                 <Link
                   href={`/app/cardio/actividad/${session.id}`}
                   aria-label="Ver actividad"
@@ -308,13 +293,6 @@ export default function CardioPage() {
           )}
         </div>
       </div>
-
-      {shareSession && (
-        <ShareActivityModal
-          session={shareSession}
-          onClose={() => setShareSession(null)}
-        />
-      )}
     </div>
   );
 }

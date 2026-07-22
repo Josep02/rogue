@@ -9,7 +9,7 @@ import type { Coordinate } from "@/lib/store/cardio-store";
 import { matchToRoads } from "@/lib/cardio/map-matching";
 
 // Fix para los iconos por defecto de Leaflet en Next.js
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
   iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
@@ -48,18 +48,15 @@ function MapUpdater({ coordinates }: { coordinates: Coordinate[] }) {
 
 export default function MapView({ coordinates, snapToRoads = false }: MapViewProps) {
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const [mounted] = useState(() => typeof document !== "undefined");
   // Traza encajada a las calles (null hasta que llega / si falla el matching).
   const [matchedPath, setMatchedPath] = useState<[number, number][] | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Map matching: se ejecuta una vez por traza cuando snapToRoads esta activo.
   // Si falla o no encaja, matchedPath se queda null y se dibuja la traza cruda.
   useEffect(() => {
     if (!snapToRoads || coordinates.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMatchedPath(null);
       return;
     }

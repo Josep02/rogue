@@ -50,14 +50,11 @@ function detectPlatform(): Platform {
  */
 export function DownloadAppModal({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
-  const [platform, setPlatform] = useState<Platform>("desktop");
-  const [installed, setInstalled] = useState(false);
+  const [platform] = useState<Platform>(() => detectPlatform());
+  const [installed, setInstalled] = useState(() => isStandalone());
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    setPlatform(detectPlatform());
-    setInstalled(isStandalone());
-
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);

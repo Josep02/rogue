@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight, Coffee, Cookie, Moon, Utensils, Barcode, Book, X, CalendarDays, Pencil } from "lucide-react";
 import { PastelCard } from "@/components/ui/pastel-card";
@@ -263,16 +263,20 @@ function PageActions({ setPantryOpen }: { setPantryOpen: (v: boolean) => void })
   const { addAlimento, addPlato } = usePantry();
   const { notify } = useToast();
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [scannedProduct, setScannedProduct] = useState<any | null>(null);
+  const [scannedProduct, setScannedProduct] = useState<{
+    product_name?: string;
+    nutriscore_grade?: string;
+    nutriments?: Record<string, number>;
+    ingredients_text?: string;
+    serving_size?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
+  const [portalTarget] = useState<Element | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
+  );
 
   // Ingredientes + deteccion de "producto listo" del producto escaneado.
   const parsed = useMemo(() => parseOffIngredients(scannedProduct), [scannedProduct]);
-
-  useEffect(() => {
-    setPortalTarget(document.getElementById("app-shell"));
-  }, []);
 
   const handleScan = async (barcode: string) => {
     setScannerOpen(false);

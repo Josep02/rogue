@@ -35,15 +35,14 @@ type Props = {
 
 export function WeekPlannerModal({ open, onClose, initialDate }: Props) {
   const { entriesForDay } = useMeals();
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
+  const [portalTarget] = useState<Element | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
+  );
   const [monday, setMonday] = useState<Date>(() => getMondayOf(initialDate));
   const [sheetTarget, setSheetTarget] = useState<{ date: string; mealType: MealType; mealLabel: string } | null>(null);
 
   useEffect(() => {
-    setPortalTarget(document.getElementById("app-shell"));
-  }, []);
-
-  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (open) setMonday(getMondayOf(initialDate));
   }, [open, initialDate]);
 

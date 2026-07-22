@@ -1,12 +1,11 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ArrowLeft, MapPin, Activity, Clock, Flame, Share2 } from "lucide-react";
+import { ArrowLeft, MapPin, Activity, Clock, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCardio } from "@/lib/store/cardio-store";
-import { ShareActivityModal } from "@/components/cardio/share-activity-modal";
 
 const MapView = dynamic(() => import("@/components/cardio/map-view"), {
   ssr: false,
@@ -33,7 +32,6 @@ export default function ActivityDetailsPage({
   const { id } = use(params);
   const router = useRouter();
   const { history } = useCardio();
-  const [sharing, setSharing] = useState(false);
 
   const session = useMemo(
     () => history.find((s) => s.id === id),
@@ -84,20 +82,7 @@ export default function ActivityDetailsPage({
             {dateFormatted}
           </p>
         </div>
-        {session.coordinates.length > 1 && (
-          <button
-            onClick={() => setSharing(true)}
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface hover:bg-muted"
-            aria-label="Compartir actividad"
-          >
-            <Share2 className="size-5" />
-          </button>
-        )}
       </div>
-
-      {sharing && (
-        <ShareActivityModal session={session} onClose={() => setSharing(false)} />
-      )}
 
       {/* Map container */}
       <div className="relative h-[300px] w-full overflow-hidden rounded-3xl border border-border shadow-sm">

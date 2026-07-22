@@ -141,6 +141,7 @@ function EditIdentityModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
       setName(profile.name);
@@ -149,11 +150,11 @@ function EditIdentityModal({
       setError(null);
     }
   }, [open, profile.name, profile.username, preferences.displayNameSource]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
-  useEffect(() => {
-    setPortalTarget(document.getElementById("app-shell"));
-  }, []);
+  const [portalTarget] = useState<Element | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
+  );
 
   if (!open) return null;
 
@@ -278,6 +279,7 @@ function EditPhysicalModal({
   const [goal, setGoal] = useState(profile.goal);
 
   // Re-sincroniza el borrador al abrir con los valores actuales.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
       setBodyweightKg(profile.bodyweightKg);
@@ -286,11 +288,11 @@ function EditPhysicalModal({
       setGoal(profile.goal);
     }
   }, [open, profile]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
-  useEffect(() => {
-    setPortalTarget(document.getElementById("app-shell"));
-  }, []);
+  const [portalTarget] = useState<Element | null>(() =>
+    typeof document !== "undefined" ? document.getElementById("app-shell") : null,
+  );
 
   if (!open) return null;
 
