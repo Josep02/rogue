@@ -70,6 +70,10 @@ type WorkoutSessionContextValue = {
   addSet: (exId: string) => void;
   removeSet: (exId: string, i: number) => void;
   replaceExercise: (oldExId: string, newExId: string) => void;
+  /** Reordena los ejercicios de la sesion en curso (no toca la rutina guardada). */
+  reorderExercises: (activeExId: string, overExId: string) => void;
+  /** Anade un ejercicio imprevisto al entreno de hoy (no toca la rutina). */
+  addExercise: (exerciseId: string) => void;
   /** Notas/flags en curso por ejercicio (exerciseId -> borrador). */
   noteDrafts: Record<string, NoteDraft>;
   /** Pone/quita el flag rapido de un ejercicio (toggle si es el mismo). */
@@ -88,6 +92,12 @@ type WorkoutSessionContextValue = {
 const WorkoutSessionContext = createContext<WorkoutSessionContextValue | null>(
   null,
 );
+
+// Valores de partida de un ejercicio anadido sobre la marcha. Coinciden con los
+// DEFAULT de routine_exercises en la BD.
+const DEFAULT_SETS = 3;
+const DEFAULT_REPS = 10;
+const DEFAULT_REST_SEC = 90;
 
 function buildRows(day: RoutineDay, unit: WeightUnit): Record<string, SetState[]> {
   const next: Record<string, SetState[]> = {};
@@ -420,12 +430,38 @@ export function WorkoutSessionProvider({
     });
   }, []);
 
-  const removeSet = useCallback((exId: string, i: number) => {
-    setRows((prev) => {
-      const list = (prev[exId] ?? []).filter((_, idx) => idx !== i);
-      return { ...prev, [exId]: list };
-    });
-  }, []);
+  /** Quita una serie. Si era la ULTIMA, el ejercicio entero sale del entreno de
+   *  hoy (no de la rutina guardada): asi un dia puntual se registra con menos
+   *  ejercicios sin tener que editar la rutina base. */
+  const removeSet = useCallback(
+    (exId: string, i: number) => {
+      const list = (rows[exId] ?? []).filter((_, idx) => idx !== i);
+      if (list.length > 0) {
+        setRows((prev) => ({ ...prev, [exId]: list }));
+        return;
+      }
+      setRows((prev) => {
+        const next = { ...prev };
+        delete next[exId];
+        return next;
+      });
+      setNoteDrafts((prev) => {
+        if (!(exId in prev)) return prev;
+        const next = { ...prev };
+        delete next[exId];
+        return next;
+      });
+      setDay((prev) =>
+        prev
+          ? {
+              ...prev,
+              exercises: prev.exercises.filter((e) => e.exerciseId !== exId),
+            }
+          : prev,
+      );
+    },
+    [rows],
+  );
 
   const replaceExercise = useCallback((oldExId: string, newExId: string) => {
     if (oldExId === newExId) return;
@@ -446,6 +482,60 @@ export function WorkoutSessionProvider({
       return { ...rest, [newExId]: existing };
     });
   }, []);
+
+  /** Anade un ejercicio no planificado al entreno de hoy (no a la rutina
+   *  guardada). Arranca con los mismos valores por defecto que la BD
+   *  (3 series x 10 reps, 90 s de descanso) y sin peso sugerido. */
+  const addExercise = useCallback((exerciseId: string) => {
+    setDay((prev) => {
+      if (!prev) return prev;
+      if (prev.exercises.some((e) => e.exerciseId === exerciseId)) return prev;
+      return {
+        ...prev,
+        exercises: [
+          ...prev.exercises,
+          {
+            exerciseId,
+            sets: DEFAULT_SETS,
+            reps: DEFAULT_REPS,
+            restSec: DEFAULT_REST_SEC,
+            suggestedKg: 0,
+          },
+        ],
+      };
+    });
+    setRows((prev) => {
+      if (prev[exerciseId]) return prev;
+      return {
+        ...prev,
+        [exerciseId]: Array.from({ length: DEFAULT_SETS }, () => ({
+          weightKg: "",
+          reps: String(DEFAULT_REPS),
+          done: false,
+        })),
+      };
+    });
+  }, []);
+
+  /** Reordena los ejercicios de la sesion en curso (drag & drop). Recibe los
+   *  ids activo/destino que da dnd-kit; el orden solo afecta a esta sesion, no
+   *  modifica la rutina guardada. */
+  const reorderExercises = useCallback(
+    (activeExId: string, overExId: string) => {
+      if (activeExId === overExId) return;
+      setDay((prev) => {
+        if (!prev) return prev;
+        const from = prev.exercises.findIndex((e) => e.exerciseId === activeExId);
+        const to = prev.exercises.findIndex((e) => e.exerciseId === overExId);
+        if (from === -1 || to === -1) return prev;
+        const exercises = [...prev.exercises];
+        const [moved] = exercises.splice(from, 1);
+        exercises.splice(to, 0, moved);
+        return { ...prev, exercises };
+      });
+    },
+    [],
+  );
 
   const skipRest = useCallback(() => setRestUntil(null), []);
 
@@ -536,6 +626,8 @@ export function WorkoutSessionProvider({
     addSet,
     removeSet,
     replaceExercise,
+    reorderExercises,
+    addExercise,
     noteDrafts,
     setExerciseFlag,
     setExerciseNote,

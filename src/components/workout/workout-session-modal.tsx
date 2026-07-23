@@ -6,6 +6,7 @@ import {
   Bell,
   Check,
   Clock,
+  GripVertical,
   Minimize2,
   Plus,
   Repeat2,
@@ -16,6 +17,26 @@ import {
   Trophy,
   X,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  restrictToVerticalAxis,
+  restrictToParentElement,
+} from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { PastelCard } from "@/components/ui/pastel-card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +48,65 @@ import { useBackButton } from "@/lib/use-back-button";
 import { getDivisionLabel, getRankTier } from "@/lib/ranks";
 import { formatWeight } from "@/lib/units";
 import { cn, formatDuration } from "@/lib/utils";
+
+/**
+ * Tarjeta de ejercicio arrastrable dentro de la sesion activa.
+ *
+ * El arrastre va por un "grip" dedicado (setActivatorNodeRef), no por toda la
+ * tarjeta: dentro hay inputs numericos, checks y chips, y arrastrar desde
+ * cualquier punto haria imposible usarlos. `touch-none` en el grip es lo que
+ * da arrastre tactil real en movil.
+ */
+function SortableExercise({
+  id,
+  children,
+}: {
+  id: string;
+  children: (handle: React.ReactNode) => React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const handle = (
+    <span
+      ref={setActivatorNodeRef}
+      {...attributes}
+      {...listeners}
+      aria-label="Arrastra para reordenar el ejercicio"
+      title="Arrastra para reordenar"
+      className="flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground active:cursor-grabbing"
+    >
+      <GripVertical className="size-4" />
+    </span>
+  );
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "rounded-3xl border bg-surface p-4",
+        isDragging
+          ? "z-10 border-foreground/40 shadow-[0_16px_40px_-12px_rgba(23,24,28,0.35)]"
+          : "border-border",
+      )}
+    >
+      {children(handle)}
+    </div>
+  );
+}
 
 export function WorkoutSessionModal() {
   const { preferences } = useRogue();
@@ -50,6 +130,8 @@ export function WorkoutSessionModal() {
     addSet,
     removeSet,
     replaceExercise,
+    reorderExercises,
+    addExercise,
     noteDrafts,
     setExerciseFlag,
     setExerciseNote,
@@ -62,8 +144,23 @@ export function WorkoutSessionModal() {
 
   // Ejercicio que se esta sustituyendo (abre el selector).
   const [swapForExId, setSwapForExId] = useState<string | null>(null);
+  // El selector esta abierto para ANADIR un ejercicio imprevisto (no sustituir).
+  const [addingExercise, setAddingExercise] = useState(false);
   // Confirmacion antes de descartar la sesion activa.
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  // Mismo umbral de 6px que el editor de rutinas: evita que un toque en un
+  // input o en el check de serie se interprete como arrastre.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    reorderExercises(String(active.id), String(over.id));
+  };
 
   // "Atrás" (APK/PWA) minimiza el entreno en vez de sacar la app al home.
   useBackButton(active && !minimized && !!day, minimize);
@@ -239,14 +336,24 @@ export function WorkoutSessionModal() {
       </header>
 
       <div className="mx-auto flex w-full flex-1 flex-col gap-4 overflow-y-auto px-5 pb-40 pt-2 md:max-w-2xl">
-        {day.exercises.map((ex) => {
-          const info = getExerciseInfo(ex.exerciseId);
-          return (
-            <div
-              key={ex.exerciseId}
-              className="rounded-3xl border border-border bg-surface p-4"
-            >
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={day.exercises.map((e) => e.exerciseId)}
+            strategy={verticalListSortingStrategy}
+          >
+            {day.exercises.map((ex) => {
+              const info = getExerciseInfo(ex.exerciseId);
+              return (
+                <SortableExercise key={ex.exerciseId} id={ex.exerciseId}>
+                  {(handle) => (
+                    <>
               <div className="mb-3 flex items-center justify-between gap-2">
+                {handle}
                 <p className="min-w-0 flex-1 truncate text-sm font-semibold">
                   {info.nombre}
                 </p>
@@ -369,9 +476,24 @@ export function WorkoutSessionModal() {
                   className="mt-2 w-full rounded-xl bg-muted/60 px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
                 />
               </div>
-            </div>
-          );
-        })}
+                    </>
+                  )}
+                </SortableExercise>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
+
+        {/* Ejercicio imprevisto: se anade solo a este entreno, la rutina base
+            se queda como esta. */}
+        <button
+          type="button"
+          onClick={() => setAddingExercise(true)}
+          className="flex w-full items-center justify-center gap-1.5 rounded-3xl border border-dashed border-border py-4 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground active:scale-[0.99]"
+        >
+          <Plus className="size-4" />
+          Añadir ejercicio
+        </button>
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 mx-auto flex w-full flex-col gap-2 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 md:max-w-2xl">
@@ -430,12 +552,17 @@ export function WorkoutSessionModal() {
       </div>
 
       <ExerciseSelectorModal
-        open={swapForExId !== null}
-        onClose={() => setSwapForExId(null)}
+        open={swapForExId !== null || addingExercise}
+        onClose={() => {
+          setSwapForExId(null);
+          setAddingExercise(false);
+        }}
         excludeIds={day.exercises.map((e) => e.exerciseId)}
         onSelect={(newEx) => {
           if (swapForExId) replaceExercise(swapForExId, newEx.id);
+          else if (addingExercise) addExercise(newEx.id);
           setSwapForExId(null);
+          setAddingExercise(false);
         }}
       />
 
