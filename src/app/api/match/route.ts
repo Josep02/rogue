@@ -1,4 +1,10 @@
 import type { NextRequest } from "next/server";
+import {
+  rateLimit,
+  requireUser,
+  tooManyRequests,
+  unauthorized,
+} from "@/lib/api/guard";
 
 // Map matching contra OSRM (servidor demo publico, sin token). Recibe la traza
 // GPS cruda y devuelve una geometria util para dibujar:
@@ -67,6 +73,12 @@ function downsample(coords: Point[], max: number): Point[] {
 }
 
 export async function POST(req: NextRequest) {
+  // Requiere sesion: sin esto era un proxy abierto contra OSRM a nuestra costa.
+  // Limite bajo: el map matching solo se pide al abrir el detalle de una ruta.
+  const userId = await requireUser();
+  if (!userId) return unauthorized();
+  if (!rateLimit(`match:${userId}`, 20, 60_000)) return tooManyRequests();
+
   let body: { coordinates?: Point[] };
   try {
     body = await req.json();

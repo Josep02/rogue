@@ -415,38 +415,45 @@ async function ensureRoutineId(
   return created.id;
 }
 
-/** Idempotente (upsert + delete/insert de sets): un reintento tras un fallo
- *  a medias no duplica ni la sesion ni sus series. */
-async function insertWorkoutSession(
+/**
+ * Guarda sesion + series + notas en UNA transaccion, via la funcion
+ * `log_workout` de Postgres (ver supabase/migrations/20260723_log_workout_rpc.sql).
+ *
+ * Antes esto eran 3-4 peticiones HTTP sueltas: si la red se cortaba a mitad
+ * quedaba la sesion SIN series, y como el reintento borra antes de insertar,
+ * podia quedarse vacia de forma permanente (paso el 23/07/2026). Ahora es
+ * todo-o-nada, y sigue siendo idempotente, asi que un reintento no duplica.
+ *
+ * El user_id lo pone la funcion desde auth.uid(), no viaja como parametro.
+ */
+async function saveWorkout(
   supabase: SupabaseClient,
-  userId: string,
   session: WorkoutSession,
+  notes: ExerciseNote[],
 ) {
-  const { error: sessionError } = await supabase.from("workout_sessions").upsert({
-    id: session.id,
-    user_id: userId,
-    day_label: session.dayLabel,
-    date: session.dateISO,
-    duration_sec: session.durationSec ?? null,
-  });
-  if (sessionError) throw sessionError;
-  const { error: clearError } = await supabase
-    .from("workout_sets")
-    .delete()
-    .eq("session_id", session.id);
-  if (clearError) throw clearError;
-  if (session.sets.length === 0) return;
-  const { error: setsError } = await supabase.from("workout_sets").insert(
-    session.sets.map((set, i) => ({
-      session_id: session.id,
+  const { error } = await supabase.rpc("log_workout", {
+    p_session_id: session.id,
+    p_day_label: session.dayLabel,
+    p_date: session.dateISO,
+    p_duration_sec: session.durationSec ?? null,
+    p_sets: session.sets.map((set, i) => ({
       exercise_id: set.exerciseId,
       categoria: set.grupo,
       weight_kg: set.weightKg,
       reps: set.reps,
       position: i,
     })),
-  );
-  if (setsError) throw setsError;
+    p_notes: notes.map((n) => ({
+      id: n.id,
+      exercise_id: n.exerciseId,
+      flag: n.flag,
+      note: n.text,
+      weight_kg: n.weightKg,
+      acknowledged: n.acknowledged,
+      created_at: n.dateISO,
+    })),
+  });
+  if (error) throw error;
 }
 
 type ExerciseNoteRow = {
@@ -485,29 +492,6 @@ async function fetchExerciseNotes(
     acknowledged: n.acknowledged,
     dateISO: n.created_at,
   }));
-}
-
-async function insertExerciseNotes(
-  supabase: SupabaseClient,
-  userId: string,
-  notes: ExerciseNote[],
-) {
-  if (notes.length === 0) return;
-  // Upsert por el id generado en cliente: reintentable sin duplicar.
-  const { error } = await supabase.from("exercise_notes").upsert(
-    notes.map((n) => ({
-      id: n.id,
-      user_id: userId,
-      session_id: n.sessionId,
-      exercise_id: n.exerciseId,
-      flag: n.flag,
-      note: n.text,
-      weight_kg: n.weightKg,
-      acknowledged: n.acknowledged,
-      created_at: n.dateISO,
-    })),
-  );
-  if (error) throw error;
 }
 
 export function RogueProvider({ children }: { children: React.ReactNode }) {
@@ -784,11 +768,7 @@ export function RogueProvider({ children }: { children: React.ReactNode }) {
 
       const userId = userIdRef.current;
       if (userId) {
-        syncWrite("el entreno", async () => {
-          await insertWorkoutSession(supabase, userId, session);
-          // Las notas se insertan despues: dependen de la fila de sesion (FK).
-          await insertExerciseNotes(supabase, userId, noteRows);
-        });
+        syncWrite("el entreno", () => saveWorkout(supabase, session, noteRows));
       }
 
       return { session, prs, rankChanges };

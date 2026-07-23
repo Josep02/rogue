@@ -1,27 +1,18 @@
--- ============================================================
--- Rogue — SQL PENDIENTE de aplicar.
--- Pega TODO este fichero en: Supabase Dashboard -> SQL Editor -> Run.
+-- Guardado ATOMICO de un entreno (sesion + series + notas) en una transaccion.
 --
--- (Los bloques anteriores —profiles.email, CHECKs, updated_at— ya se
---  aplicaron el 22/07/2026. Este fichero solo contiene lo nuevo.)
--- ============================================================
-
--- ------------------------------------------------------------
--- Guardado ATOMICO de un entreno (sesion + series + notas).
+-- Problema que resuelve: el cliente hacia 3 peticiones HTTP sueltas
+-- (upsert sesion -> delete series -> insert series -> upsert notas). Si la red
+-- se cortaba a mitad quedaba la sesion SIN series, y como el reintento borra
+-- antes de insertar, un fallo entre medias podia dejarlo vacio de forma
+-- permanente. Ocurrio de verdad el 23/07/2026 (sesion "Empuje" con 0 series).
 --
--- Arregla el fallo del 23/07/2026: el cliente hacia 3-4 peticiones HTTP
--- sueltas y, al cortarse la red a mitad, quedo una sesion "Empuje" con 0
--- series. Como el reintento borra las series antes de insertarlas, el
--- entreno podia perderse del todo.
+-- Al ser una funcion, el cuerpo entero corre en UNA transaccion: o entra todo
+-- o no entra nada. Sigue siendo idempotente (upsert por id generado en
+-- cliente + delete/insert de series), asi que un reintento no duplica.
 --
--- Al ser una funcion, el cuerpo corre en UNA transaccion: o entra todo o
--- no entra nada. Sigue siendo idempotente (upsert por id de cliente), asi
--- que un reintento no duplica nada.
---
--- security invoker: corre como el usuario que llama, RLS se sigue
--- aplicando, y user_id sale de auth.uid() (nunca de un parametro que el
--- cliente pudiera falsear).
--- ------------------------------------------------------------
+-- security invoker (por defecto): corre como el usuario que llama, de modo que
+-- las politicas RLS se siguen aplicando con normalidad y user_id sale de
+-- auth.uid() -- nunca de un parametro que el cliente pudiera falsear.
 
 create or replace function log_workout(
   p_session_id   uuid,
@@ -49,6 +40,7 @@ begin
         date         = excluded.date,
         duration_sec = excluded.duration_sec;
 
+  -- Reemplazo completo de las series de esta sesion (idempotente).
   delete from workout_sets where session_id = p_session_id;
 
   insert into workout_sets (session_id, exercise_id, categoria, weight_kg, reps, position)
@@ -60,6 +52,7 @@ begin
          (s->>'position')::int
   from jsonb_array_elements(coalesce(p_sets, '[]'::jsonb)) as s;
 
+  -- Notas: upsert por el id generado en cliente.
   insert into exercise_notes (
     id, user_id, session_id, exercise_id, flag, note, weight_kg, acknowledged, created_at
   )
